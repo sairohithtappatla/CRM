@@ -1,0 +1,298 @@
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import Navbar from "@/components/Navbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "@/hooks/use-toast";
+import { User, Mail, Phone, Building2, Save } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+const PHOTO_KEY = "profilePhoto"; // localStorage key
+
+const MyProfile = () => {
+  const [formData, setFormData] = useState({
+    name: "Admin",
+    email: "subbuinnovativeclasses@gmail.com",
+    phone: "+91 9640549549",
+    role: "Administrator",
+    organization: "Subbu Innovative Classes",
+    address: "Survey no:39/part,Hanuman nagar, Gandipet,Rangaredddy Hyderabad, Telangana 500089 India",
+  });
+
+  const [photo, setPhoto] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(PHOTO_KEY);
+    if (saved) setPhoto(saved);
+  }, []);
+
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = () => {
+    toast({
+      title: "✅ Profile Updated",
+      description: "Your profile information has been saved successfully",
+    });
+  };
+
+  const openPicker = () => fileInputRef.current?.click();
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type + size (<= 3MB)
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Unsupported file",
+        description: "Please select a PNG, JPG, or WEBP image.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const maxBytes = 3 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast({
+        title: "File too large",
+        description: "Please choose an image under 3 MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setPhoto(dataUrl);
+      localStorage.setItem(PHOTO_KEY, dataUrl);
+      toast({ title: "Photo updated", description: "Your profile picture has changed." });
+    } catch {
+      toast({
+        title: "Upload failed",
+        description: "Something went wrong while reading the image.",
+        variant: "destructive",
+      });
+    } finally {
+      // allow selecting the same file again
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    localStorage.removeItem(PHOTO_KEY);
+    toast({ title: "Photo removed", description: "Reverted to initials." });
+  };
+
+  // Helper for initials when no photo
+  const initials = formData.name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col w-full">
+          <Navbar />
+          <main className="flex-1 p-4 sm:p-6 bg-subbuGray/30 dark:bg-background overflow-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-subbuText">My Profile</h2>
+              <p className="text-muted-foreground">View and update your profile information</p>
+            </div>
+
+            <div className="max-w-3xl space-y-6">
+              {/* Profile Card with Avatar */}
+              <Card className="bg-white dark:bg-card">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <button
+                      type="button"
+                      onClick={openPicker}
+                      className="relative group rounded-full outline-none focus:ring-2 focus:ring-offset-2 focus:ring-subbuRed"
+                      aria-label="Change profile photo"
+                    >
+                      <Avatar className="h-24 w-24">
+                        {photo ? <AvatarImage src={photo} alt="Profile photo" /> : null}
+                        <AvatarFallback className="bg-subbuRed text-white text-2xl font-bold">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* subtle hover overlay hint */}
+                      <span className="absolute inset-0 hidden group-hover:flex items-center justify-center rounded-full bg-black/35 text-white text-xs">
+                        Change
+                      </span>
+                    </button>
+
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-xl font-bold text-subbuText">{formData.name}</h3>
+                      <p className="text-sm text-muted-foreground">{formData.role}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Member since {formData.address}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="hover:bg-gray-100 dark:hover:bg-muted"
+                        onClick={openPicker}
+                      >
+                        Change Photo
+                      </Button>
+                      {photo && (
+                        <Button variant="ghost" onClick={removePhoto}>
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      className="hidden"
+                      onChange={handlePhotoChange}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Personal Information */}
+              <Card className="bg-white dark:bg-card">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <User className="h-5 w-5 text-subbuRed" />
+                    Personal Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Full Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => handleChange("name", e.target.value)}
+                          className="pl-10 bg-white dark:bg-background"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="role">Role</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="role"
+                          value={formData.role}
+                          disabled
+                          className="pl-10 bg-gray-50 dark:bg-muted/50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => handleChange("email", e.target.value)}
+                          className="pl-10 bg-white dark:bg-background"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) => handleChange("phone", e.target.value)}
+                          className="pl-10 bg-white dark:bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Organization Details */}
+              <Card className="bg-white dark:bg-card">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-subbuRed" />
+                    Organization Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="organization">Organization Name</Label>
+                    <Input
+                      id="organization"
+                      value={formData.organization}
+                      disabled
+                      className="bg-gray-50 dark:bg-muted/50"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    <div className="relative">
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        disabled
+                        className="pl-10 bg-gray-50 dark:bg-muted/50"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button
+                  className="bg-subbuRed hover:bg-[#c9221b] min-w-32"
+                  onClick={handleSave}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+};
+
+export default MyProfile;
