@@ -34,6 +34,7 @@ interface Lead {
   last_contact_at: string;
   language_pref: 'en' | 'hi' | 'te';
   organization_id: string | null;
+  engagement_score: number | null;
 }
 
 interface Message {

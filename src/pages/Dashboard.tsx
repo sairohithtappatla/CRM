@@ -18,11 +18,11 @@ interface Lead {
   class: string | null;
   status: 'HOT' | 'WARM' | 'COLD' | 'FOLLOW-UP' | 'ADMITTED';
   score: number;
+  engagement_score: number | null;  // ✅ ADD THIS LINE
   last_contact_at: string;
   language_pref: 'en' | 'hi' | 'te';
   organization_id: string | null;
 }
-
 const Dashboard = () => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);

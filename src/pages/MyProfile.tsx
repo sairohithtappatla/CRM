@@ -77,13 +77,17 @@ const MyProfile = () => {
         setOrganizationId(adminData.organization_id);
         setCreatedAt(adminData.created_at);
 
+        // ✅ FIX: Handle organizations as array from Supabase join
+        const orgArray = adminData.organizations as { name: string; domain: string }[] | null;
+        const orgData = orgArray && orgArray.length > 0 ? orgArray[0] : null;
+
         setFormData({
           name: adminData.username || "Admin",
           email: adminData.email,
-          phone: "+91 9640549549", // Default, can be added to admins table later
+          phone: "+91 9640549549",
           role: "Administrator",
-          organization: adminData.organizations?.name || "Not Assigned",
-          address: "Hyderabad, Telangana, India", // Default, can be added to organizations table later
+          organization: orgData?.name || "Not Assigned",  // ✅ FIXED
+          address: "Hyderabad, Telangana, India",
         });
       }
     } catch (error) {
