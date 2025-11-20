@@ -8,6 +8,7 @@ export interface Lead {
   class: string | null;
   status: 'HOT' | 'WARM' | 'COLD' | 'FOLLOW-UP' | 'ADMITTED' | null;
   score: number | null;
+  engagement_score: number | null;
   last_contact_at: string | null;
   created_at: string | null;
   language_pref: 'en' | 'hi' | 'te' | null;
@@ -24,6 +25,12 @@ export interface Lead {
   device_type: string | null;
   browser: string | null;
   source_metadata: any | null;
+  current_session_id: string | null;
+  session_start_at: string | null;
+  session_message_count: number | null;
+  total_messages_sent: number | null;
+  total_messages_received: number | null;
+  avg_response_time_seconds: number | null;
 }
 
 export interface Message {

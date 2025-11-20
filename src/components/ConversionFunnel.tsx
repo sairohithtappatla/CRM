@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { ArrowRight, TrendingDown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 interface FunnelStage {
 	stage: string;
@@ -9,15 +11,101 @@ interface FunnelStage {
 	percentage: number;
 }
 
-const funnelData: FunnelStage[] = [
-	{ stage: "Total Leads", count: 100, percentage: 100 },
-	{ stage: "Contacted", count: 75, percentage: 75 },
-	{ stage: "Demo Scheduled", count: 45, percentage: 45 },
-	{ stage: "Demo Completed", count: 35, percentage: 35 },
-	{ stage: "Admitted", count: 20, percentage: 20 },
-];
+interface Lead {
+	id: string;
+	status: 'HOT' | 'WARM' | 'COLD' | 'FOLLOW-UP' | 'ADMITTED';
+	score: number;
+}
 
 const ConversionFunnel = () => {
+	const [funnelData, setFunnelData] = useState<FunnelStage[]>([]);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		fetchFunnelData();
+	}, []);
+
+	const fetchFunnelData = async () => {
+		try {
+			setLoading(true);
+			const { data: leads, error } = await supabase
+				.from('leads')
+				.select('id, status, score');
+
+			if (error) throw error;
+
+			const totalLeads = leads?.length || 0;
+			const contacted = leads?.filter(l => l.status !== 'COLD').length || 0;
+			const hotWarmLeads = leads?.filter(l => l.status === 'HOT' || l.status === 'WARM').length || 0;
+			const followUpLeads = leads?.filter(l => l.status === 'FOLLOW-UP').length || 0;
+			const admitted = leads?.filter(l => l.status === 'ADMITTED').length || 0;
+
+			// Calculate realistic demo scheduled (HOT + some WARM leads with high scores)
+			const demoScheduled = leads?.filter(l =>
+				l.status === 'HOT' || (l.status === 'WARM' && l.score >= 60)
+			).length || 0;
+
+			// Demo completed is between demo scheduled and admitted
+			const demoCompleted = Math.ceil((demoScheduled + admitted) / 2);
+
+			const stages: FunnelStage[] = [
+				{
+					stage: "Total Leads",
+					count: totalLeads,
+					percentage: 100
+				},
+				{
+					stage: "Contacted",
+					count: contacted,
+					percentage: totalLeads > 0 ? Math.round((contacted / totalLeads) * 100) : 0
+				},
+				{
+					stage: "Demo Scheduled",
+					count: demoScheduled,
+					percentage: totalLeads > 0 ? Math.round((demoScheduled / totalLeads) * 100) : 0
+				},
+				{
+					stage: "Demo Completed",
+					count: demoCompleted,
+					percentage: totalLeads > 0 ? Math.round((demoCompleted / totalLeads) * 100) : 0
+				},
+				{
+					stage: "Admitted",
+					count: admitted,
+					percentage: totalLeads > 0 ? Math.round((admitted / totalLeads) * 100) : 0
+				},
+			];
+
+			setFunnelData(stages);
+		} catch (error) {
+			console.error('Error fetching funnel data:', error);
+			// Set empty funnel on error
+			setFunnelData([
+				{ stage: "Total Leads", count: 0, percentage: 100 },
+				{ stage: "Contacted", count: 0, percentage: 0 },
+				{ stage: "Demo Scheduled", count: 0, percentage: 0 },
+				{ stage: "Demo Completed", count: 0, percentage: 0 },
+				{ stage: "Admitted", count: 0, percentage: 0 },
+			]);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	if (loading || funnelData.length === 0) {
+		return (
+			<div className="space-y-3">
+				<div className="text-sm text-muted-foreground text-center py-8">
+					Loading funnel data...
+				</div>
+			</div>
+		);
+	}
+
+	const totalLeads = funnelData[0].count;
+	const admitted = funnelData[funnelData.length - 1].count;
+	const overallConversionRate = totalLeads > 0 ? Math.round((admitted / totalLeads) * 100) : 0;
+
 	return (
 		<div className="space-y-3">
 			{funnelData.map((stage, index) => {
@@ -95,8 +183,8 @@ const ConversionFunnel = () => {
 						</p>
 					</div>
 					<div className="text-right">
-						<p className="text-2xl font-bold text-subbuGreen">20%</p>
-						<p className="text-xs text-muted-foreground">20/100 converted</p>
+						<p className="text-2xl font-bold text-subbuGreen">{overallConversionRate}%</p>
+						<p className="text-xs text-muted-foreground">{admitted}/{totalLeads} converted</p>
 					</div>
 				</div>
 			</div>

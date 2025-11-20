@@ -23,11 +23,12 @@ const PHOTO_KEY = "profilePhoto";
 
 interface Notification {
   id: string;
-  event: string;
-  payload: any;
-  read: boolean;
+  type: string;
+  message: string;
+  is_read: boolean;
   created_at: string;
-  admin_id: string | null;
+  lead_id: string | null;
+  metadata: any;
 }
 
 const Navbar = () => {
@@ -52,7 +53,7 @@ const Navbar = () => {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'notifications',
+          table: 'admin_notifications',
         },
         (payload) => {
           console.log('New notification:', payload);
@@ -61,7 +62,7 @@ const Navbar = () => {
           // Show toast for new notification
           const newNotif = payload.new as Notification;
           toast({
-            title: getNotificationTitle(newNotif.event),
+            title: getNotificationTitle(newNotif.type),
             description: getNotificationDescription(newNotif),
           });
         }
@@ -78,7 +79,7 @@ const Navbar = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('notifications')
+        .from('admin_notifications')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -86,7 +87,7 @@ const Navbar = () => {
       if (error) throw error;
 
       setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.read).length || 0);
+      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -97,10 +98,9 @@ const Navbar = () => {
   const markAsRead = async (notificationId: string) => {
     try {
       const { error } = await supabase
-        .from('notifications')
+        .from('admin_notifications')
         .update({
-          read: true,
-          read_at: new Date().toISOString()
+          is_read: true
         })
         .eq('id', notificationId);
 
@@ -108,7 +108,7 @@ const Navbar = () => {
 
       // Update local state
       setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
@@ -118,21 +118,20 @@ const Navbar = () => {
 
   const markAllAsRead = async () => {
     try {
-      const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+      const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
 
       if (unreadIds.length === 0) return;
 
       const { error } = await supabase
-        .from('notifications')
+        .from('admin_notifications')
         .update({
-          read: true,
-          read_at: new Date().toISOString()
+          is_read: true
         })
         .in('id', unreadIds);
 
       if (error) throw error;
 
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
 
       toast({
@@ -143,74 +142,65 @@ const Navbar = () => {
     }
   };
 
-  const getNotificationIcon = (event: string) => {
-    switch (event) {
-      case 'new_lead':
-        return Users;
-      case 'payment_received':
-        return DollarSign;
-      case 'lead_hot':
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'hot_lead':
         return Phone;
-      case 'message_received':
+      case 'high_stress':
+        return Users;
+      case 'payment_dispute':
+        return DollarSign;
+      case 'complaint':
         return MessageCircle;
-      case 'payment_pending':
-        return CreditCard;
+      case 'spam':
+        return Bell;
+      case 'urgent':
+        return Bell;
       default:
         return Bell;
     }
   };
 
-  const getNotificationColor = (event: string) => {
-    switch (event) {
-      case 'new_lead':
-        return 'text-blue-500';
-      case 'payment_received':
-        return 'text-green-500';
-      case 'lead_hot':
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case 'hot_lead':
         return 'text-status-hot';
-      case 'message_received':
-        return 'text-purple-500';
-      case 'payment_pending':
+      case 'high_stress':
+        return 'text-red-500';
+      case 'payment_dispute':
         return 'text-yellow-500';
+      case 'complaint':
+        return 'text-orange-500';
+      case 'spam':
+        return 'text-gray-500';
+      case 'urgent':
+        return 'text-red-600';
       default:
         return 'text-gray-500';
     }
   };
 
-  const getNotificationTitle = (event: string) => {
-    switch (event) {
-      case 'new_lead':
-        return '👤 New Lead';
-      case 'payment_received':
-        return '💰 Payment Received';
-      case 'lead_hot':
+  const getNotificationTitle = (type: string) => {
+    switch (type) {
+      case 'hot_lead':
         return '🔥 Hot Lead Alert';
-      case 'message_received':
-        return '💬 New Message';
-      case 'payment_pending':
-        return '⏰ Payment Pending';
+      case 'high_stress':
+        return '⚠️ High Stress Detected';
+      case 'payment_dispute':
+        return '💰 Payment Dispute';
+      case 'complaint':
+        return '📢 Complaint Received';
+      case 'spam':
+        return '🚫 Spam Detected';
+      case 'urgent':
+        return '🚨 Urgent Attention Required';
       default:
         return '🔔 Notification';
     }
   };
 
   const getNotificationDescription = (notification: Notification) => {
-    const { event, payload } = notification;
-
-    switch (event) {
-      case 'new_lead':
-        return `${payload?.lead_name || 'New lead'} - Class ${payload?.class || 'N/A'}`;
-      case 'payment_received':
-        return `₹${payload?.amount?.toLocaleString('en-IN') || '0'} from ${payload?.lead_name || 'Unknown'}`;
-      case 'lead_hot':
-        return `${payload?.lead_name || 'Lead'} score: ${payload?.score || 0}% - ${payload?.reason || ''}`;
-      case 'message_received':
-        return `New message from ${payload?.lead_name || 'Unknown'}`;
-      case 'payment_pending':
-        return `₹${payload?.amount?.toLocaleString('en-IN') || '0'} from ${payload?.lead_name || 'Unknown'}`;
-      default:
-        return payload?.message || 'You have a new notification';
-    }
+    return notification.message || 'You have a new notification';
   };
 
   const formatTimeAgo = (timestamp: string) => {
@@ -223,19 +213,19 @@ const Navbar = () => {
 
   const handleNotificationClick = async (notification: Notification) => {
     // Mark as read
-    if (!notification.read) {
+    if (!notification.is_read) {
       await markAsRead(notification.id);
     }
 
-    // Navigate based on event type
-    switch (notification.event) {
-      case 'new_lead':
-      case 'lead_hot':
-      case 'message_received':
+    // Navigate based on type
+    switch (notification.type) {
+      case 'hot_lead':
+      case 'high_stress':
+      case 'complaint':
+      case 'urgent':
         navigate('/dashboard');
         break;
-      case 'payment_received':
-      case 'payment_pending':
+      case 'payment_dispute':
         navigate('/leads');
         break;
       default:
@@ -331,13 +321,13 @@ const Navbar = () => {
                 </div>
               ) : (
                 notifications.map((notification) => {
-                  const Icon = getNotificationIcon(notification.event);
-                  const color = getNotificationColor(notification.event);
+                  const Icon = getNotificationIcon(notification.type);
+                  const color = getNotificationColor(notification.type);
 
                   return (
                     <DropdownMenuItem
                       key={notification.id}
-                      className={`flex items-start gap-3 p-3 cursor-pointer ${!notification.read ? 'bg-muted/50' : ''
+                      className={`flex items-start gap-3 p-3 cursor-pointer ${!notification.is_read ? 'bg-muted/50' : ''
                         }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
@@ -347,9 +337,9 @@ const Navbar = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-medium text-foreground">
-                            {getNotificationTitle(notification.event)}
+                            {getNotificationTitle(notification.type)}
                           </p>
-                          {!notification.read && (
+                          {!notification.is_read && (
                             <div className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
                           )}
                         </div>

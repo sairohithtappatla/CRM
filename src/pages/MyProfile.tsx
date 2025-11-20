@@ -7,38 +7,148 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
-import { User, Mail, Phone, Building2, Save } from "lucide-react";
+import { User, Mail, Phone, Building2, Save, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 const PHOTO_KEY = "profilePhoto"; // localStorage key
 
 const MyProfile = () => {
   const [formData, setFormData] = useState({
-    name: "Admin",
-    email: "subbuinnovativeclasses@gmail.com",
-    phone: "+91 9640549549",
+    name: "",
+    email: "",
+    phone: "",
     role: "Administrator",
-    organization: "Subbu Innovative Classes",
-    address: "Survey no:39/part,Hanuman nagar, Gandipet,Rangaredddy Hyderabad, Telangana 500089 India",
+    organization: "",
+    address: "",
   });
 
   const [photo, setPhoto] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [adminId, setAdminId] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(PHOTO_KEY);
     if (saved) setPhoto(saved);
+
+    // Fetch admin profile data
+    fetchAdminProfile();
   }, []);
+
+  const fetchAdminProfile = async () => {
+    try {
+      setLoading(true);
+      // Get admin email from localStorage (set during login)
+      const adminEmail = localStorage.getItem("adminEmail");
+
+      if (!adminEmail) {
+        toast({
+          title: "⚠️ Warning",
+          description: "No admin session found. Please log in again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch admin data with organization join
+      const { data: adminData, error: adminError } = await supabase
+        .from("admins")
+        .select(`
+          id,
+          username,
+          email,
+          organization_id,
+          created_at,
+          organizations (
+            name,
+            domain
+          )
+        `)
+        .eq("email", adminEmail)
+        .single();
+
+      if (adminError) throw adminError;
+
+      if (adminData) {
+        setAdminId(adminData.id);
+        setOrganizationId(adminData.organization_id);
+        setCreatedAt(adminData.created_at);
+
+        setFormData({
+          name: adminData.username || "Admin",
+          email: adminData.email,
+          phone: "+91 9640549549", // Default, can be added to admins table later
+          role: "Administrator",
+          organization: adminData.organizations?.name || "Not Assigned",
+          address: "Hyderabad, Telangana, India", // Default, can be added to organizations table later
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching admin profile:", error);
+      toast({
+        title: "❌ Error",
+        description: "Failed to load profile data",
+        variant: "destructive",
+      });
+
+      // Fallback to default values
+      setFormData({
+        name: "Admin",
+        email: localStorage.getItem("adminEmail") || "admin@example.com",
+        phone: "+91 9640549549",
+        role: "Administrator",
+        organization: "Subbu Innovative Classes",
+        address: "Hyderabad, Telangana, India",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    toast({
-      title: "✅ Profile Updated",
-      description: "Your profile information has been saved successfully",
-    });
+  const handleSave = async () => {
+    if (!adminId) {
+      toast({
+        title: "⚠️ Error",
+        description: "Unable to save: Admin ID not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Update admin data in Supabase
+      const { error } = await supabase
+        .from("admins")
+        .update({
+          username: formData.name,
+          email: formData.email,
+        })
+        .eq("id", adminId);
+
+      if (error) throw error;
+
+      // Update localStorage email if changed
+      localStorage.setItem("adminEmail", formData.email);
+
+      toast({
+        title: "✅ Profile Updated",
+        description: "Your profile information has been saved successfully",
+      });
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast({
+        title: "❌ Error",
+        description: "Failed to save profile changes",
+        variant: "destructive",
+      });
+    }
   };
 
   const openPicker = () => fileInputRef.current?.click();
@@ -100,11 +210,40 @@ const MyProfile = () => {
 
   // Helper for initials when no photo
   const initials = formData.name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+    ? formData.name
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : "AD";
+
+  // Format created date
+  const memberSince = createdAt
+    ? new Date(createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : "N/A";
+
+  if (loading) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex-1 flex flex-col w-full">
+            <Navbar />
+            <main className="flex-1 flex items-center justify-center bg-subbuGray/30 dark:bg-background">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-subbuRed mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading profile...</p>
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -145,7 +284,7 @@ const MyProfile = () => {
                       <h3 className="text-xl font-bold text-subbuText">{formData.name}</h3>
                       <p className="text-sm text-muted-foreground">{formData.role}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Member since {formData.address}
+                        Member since {memberSince}
                       </p>
                     </div>
 

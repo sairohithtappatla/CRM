@@ -42,9 +42,17 @@ interface Lead {
   created_at: string;
 }
 
+interface Message {
+  lead_id: string;
+  sender: "user" | "admin" | "assistant";
+  timestamp: string;
+}
+
 const Analytics = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [avgResponseTime, setAvgResponseTime] = useState<string>("0h");
+  const [successRate, setSuccessRate] = useState<number>(0);
 
   useEffect(() => {
     fetchAnalytics();
@@ -60,6 +68,12 @@ const Analytics = () => {
 
       if (error) throw error;
       setLeads(data || []);
+
+      // Fetch messages to calculate response time
+      await calculateResponseTime(data || []);
+
+      // Calculate success rate
+      calculateSuccessRate(data || []);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast({
@@ -72,10 +86,96 @@ const Analytics = () => {
     }
   };
 
+  const calculateResponseTime = async (leadsData: Lead[]) => {
+    try {
+      const { data: messages, error } = await supabase
+        .from("messages")
+        .select("lead_id, sender, timestamp")
+        .order("timestamp", { ascending: true });
+
+      if (error || !messages || messages.length === 0) {
+        setAvgResponseTime("N/A");
+        return;
+      }
+
+      // Group messages by lead_id
+      const leadMessages: Record<string, Message[]> = {};
+      messages.forEach((msg: any) => {
+        if (!leadMessages[msg.lead_id]) {
+          leadMessages[msg.lead_id] = [];
+        }
+        leadMessages[msg.lead_id].push(msg);
+      });
+
+      // Calculate response times for each lead
+      const responseTimes: number[] = [];
+      Object.keys(leadMessages).forEach((leadId) => {
+        const msgs = leadMessages[leadId];
+        const firstUserMsg = msgs.find((m) => m.sender === "user");
+        const firstAdminMsg = msgs.find(
+          (m) => m.sender === "admin" || m.sender === "assistant"
+        );
+
+        if (firstUserMsg && firstAdminMsg) {
+          const userTime = new Date(firstUserMsg.timestamp).getTime();
+          const adminTime = new Date(firstAdminMsg.timestamp).getTime();
+          if (adminTime > userTime) {
+            responseTimes.push(adminTime - userTime);
+          }
+        }
+      });
+
+      if (responseTimes.length === 0) {
+        setAvgResponseTime("N/A");
+        return;
+      }
+
+      // Calculate average response time in milliseconds
+      const avgMs =
+        responseTimes.reduce((sum, time) => sum + time, 0) /
+        responseTimes.length;
+
+      // Convert to hours with 1 decimal
+      const avgHours = avgMs / (1000 * 60 * 60);
+      if (avgHours < 1) {
+        const avgMinutes = Math.round(avgMs / (1000 * 60));
+        setAvgResponseTime(`${avgMinutes}m`);
+      } else {
+        setAvgResponseTime(`${avgHours.toFixed(1)}h`);
+      }
+    } catch (error) {
+      console.error("Error calculating response time:", error);
+      setAvgResponseTime("N/A");
+    }
+  };
+
+  const calculateSuccessRate = (leadsData: Lead[]) => {
+    // Demo scheduled = HOT + WARM with score >= 60
+    const demoScheduled = leadsData.filter(
+      (l) => l.status === "HOT" || (l.status === "WARM" && l.score >= 60)
+    ).length;
+
+    // Admitted leads
+    const admitted = leadsData.filter((l) => l.status === "ADMITTED").length;
+
+    // Demo completed is estimated as average between scheduled and admitted
+    const demoCompleted = Math.ceil((demoScheduled + admitted) / 2);
+
+    // Success rate = admitted / demo completed
+    if (demoCompleted > 0) {
+      const rate = Math.round((admitted / demoCompleted) * 100);
+      setSuccessRate(rate);
+    } else {
+      setSuccessRate(0);
+    }
+  };
+
   const analyticsData = {
     totalLeads: leads.length,
     hotLeads: leads.filter((l) => l.status === "HOT").length,
-    demosScheduled: Math.floor(leads.length * 0.4),
+    demosScheduled: leads.filter(
+      (l) => l.status === "HOT" || (l.status === "WARM" && l.score >= 60)
+    ).length,
     admissions: leads.filter((l) => l.status === "ADMITTED").length,
   };
 
@@ -531,7 +631,7 @@ const Analytics = () => {
                     Avg. Response Time
                   </p>
                   <h3 className="text-3xl font-bold text-green-900 dark:text-green-100">
-                    2.5h
+                    {avgResponseTime}
                   </h3>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                     First contact time
@@ -545,7 +645,7 @@ const Analytics = () => {
                     Success Rate
                   </p>
                   <h3 className="text-3xl font-bold text-purple-900 dark:text-purple-100">
-                    77%
+                    {successRate}%
                   </h3>
                   <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
                     Demo to admission

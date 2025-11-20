@@ -1,5 +1,5 @@
 import { X, Phone, Mail, MessageCircle, Send } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,7 +21,8 @@ interface Lead {
   phone: string | null;
   class: string | null;
   status: 'HOT' | 'WARM' | 'COLD' | 'FOLLOW-UP' | 'ADMITTED';
-  score: number;
+  score: number | null;
+  engagement_score: number | null;
   last_contact_at: string;
   language_pref: 'en' | 'hi' | 'te';
   organization_id: string | null;
@@ -30,7 +31,7 @@ interface Lead {
 interface Message {
   id: number;
   lead_id: string;
-  sender: 'user' | 'admin';
+  sender: 'user' | 'admin' | 'assistant';
   message: string;
   timestamp: string;
 }
@@ -58,27 +59,107 @@ const LeadDrawer = ({ lead, open, onClose }: LeadDrawerProps) => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>("");
+  const [currentScore, setCurrentScore] = useState<number>(0);
+  const [displayName, setDisplayName] = useState<string>("");
 
   useEffect(() => {
     if (lead && open) {
       setCurrentStatus(lead.status);
+      setCurrentScore(lead.score);
+      fetchDisplayName();
       fetchMessages();
       fetchPayments();
     }
   }, [lead, open]);
 
+  const fetchDisplayName = async () => {
+    if (!lead) return;
+
+    // If we have parent_name, use it
+    if (lead.parent_name && lead.parent_name !== 'Unknown Parent') {
+      setDisplayName(lead.parent_name);
+      return;
+    }
+
+    try {
+      // Try to get name from AI memory profile using secure RPC function
+      const { data: aiMemoryProfile, error: memoryError } = await supabase
+        .rpc('get_lead_ai_memory', { lead_id_input: lead.id });
+
+      if (!memoryError && aiMemoryProfile) {
+        const profile = aiMemoryProfile as any;
+        const name = profile.parent_name || profile.student_name || profile.name;
+        if (name) {
+          setDisplayName(name);
+          // Update lead table with the name
+          await supabase
+            .from('leads')
+            .update({ parent_name: name })
+            .eq('id', lead.id);
+          return;
+        }
+      }
+
+      // If still no name, try to extract from first user message using secure RPC
+      const { data: firstMessages, error: msgError } = await supabase
+        .rpc('get_first_user_message', { lead_id_input: lead.id });
+
+      if (!msgError && firstMessages && firstMessages.length > 0) {
+        const firstMessage = firstMessages[0];
+
+        // Try to extract name from first message
+        const namePatterns = [
+          /my name is (\w+)/i,
+          /i am (\w+)/i,
+          /this is (\w+)/i,
+          /(\w+) here/i,
+        ];
+
+        for (const pattern of namePatterns) {
+          const match = firstMessage.message.match(pattern);
+          if (match && match[1]) {
+            const extractedName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+            setDisplayName(extractedName);
+            // Update lead table
+            await supabase
+              .from('leads')
+              .update({ parent_name: extractedName })
+              .eq('id', lead.id);
+            return;
+          }
+        }
+      }
+
+      // Fallback: use phone number
+      setDisplayName(lead.phone || 'Unknown Contact');
+    } catch (error) {
+      console.error('Error fetching display name:', error);
+      setDisplayName(lead.parent_name || 'Unknown Contact');
+    }
+  };
+
   const fetchMessages = async () => {
     if (!lead) return;
 
     try {
+      // Fetch last 20 messages using secure RPC function
       const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('lead_id', lead.id)
-        .order('timestamp', { ascending: true });
+        .rpc('get_lead_messages', {
+          lead_id_input: lead.id,
+          message_limit: 20
+        });
 
       if (error) throw error;
-      setMessages(data || []);
+
+      // Map msg_timestamp back to timestamp for consistency
+      const mappedMessages = (data || []).map((msg: any) => ({
+        ...msg,
+        timestamp: msg.msg_timestamp
+      }));
+
+      // Reverse to show oldest first, newest last
+      const reversedMessages = mappedMessages.reverse();
+      setMessages(reversedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast({
@@ -176,6 +257,34 @@ const LeadDrawer = ({ lead, open, onClose }: LeadDrawerProps) => {
       toast({
         title: "❌ Error",
         description: "Failed to update status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleScoreChange = async (delta: number) => {
+    if (!lead) return;
+
+    const newScore = Math.max(0, Math.min(100, currentScore + delta));
+
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ score: newScore })
+        .eq('id', lead.id);
+
+      if (error) throw error;
+
+      setCurrentScore(newScore);
+      toast({
+        title: "✅ Score Updated",
+        description: `Lead score ${delta > 0 ? 'increased' : 'decreased'} to ${newScore}`,
+      });
+    } catch (error) {
+      console.error('Error updating score:', error);
+      toast({
+        title: "❌ Error",
+        description: "Failed to update score",
         variant: "destructive",
       });
     }
@@ -300,8 +409,11 @@ const LeadDrawer = ({ lead, open, onClose }: LeadDrawerProps) => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <SheetTitle className="text-2xl">
-                  {lead.parent_name || 'Unknown Parent'}
+                  {displayName || lead.parent_name || 'Loading...'}
                 </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Lead details for {displayName || lead.parent_name || 'this contact'}
+                </SheetDescription>
                 <p className="text-muted-foreground mt-1">
                   Student: {lead.student_name || 'N/A'} • Class {lead.class || 'N/A'}
                 </p>
@@ -343,6 +455,43 @@ const LeadDrawer = ({ lead, open, onClose }: LeadDrawerProps) => {
                 <MessageCircle className="h-3 w-3" />
                 WhatsApp Lead
               </Badge>
+            </div>
+
+            {/* Score Management */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">Lead Score:</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8"
+                  onClick={() => handleScoreChange(-5)}
+                  disabled={currentScore <= 0}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Badge
+                  variant="secondary"
+                  className={`min-w-[60px] justify-center text-base font-bold ${
+                    currentScore >= 80
+                      ? 'bg-status-hot text-white'
+                      : currentScore >= 60
+                        ? 'bg-status-warm text-white'
+                        : 'bg-status-cold text-white'
+                  }`}
+                >
+                  {currentScore}%
+                </Badge>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8"
+                  onClick={() => handleScoreChange(5)}
+                  disabled={currentScore >= 100}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="flex gap-2">

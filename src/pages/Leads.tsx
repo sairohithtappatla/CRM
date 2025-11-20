@@ -98,6 +98,33 @@ const Leads = () => {
     });
   };
 
+  const formatPhoneNumber = (phone: string | null): string => {
+    if (!phone) return 'N/A';
+
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+
+    // Remove duplicate 91 prefixes
+    while (cleaned.startsWith('91') && cleaned.length > 12) {
+      cleaned = cleaned.substring(2);
+    }
+
+    // Ensure we have exactly 10 digits (without country code)
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+      cleaned = cleaned.substring(2);
+    } else if (cleaned.length > 10) {
+      cleaned = cleaned.slice(-10);
+    }
+
+    // Format as +91 XXXXX XXXXX if we have 10 digits
+    if (cleaned.length === 10) {
+      return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
+    }
+
+    // Fallback: return original if we can't parse it
+    return phone;
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -203,7 +230,7 @@ const Leads = () => {
                                 {lead.ref_source?.charAt(0).toUpperCase() + (lead.ref_source?.slice(1) || '') || 'Unknown'}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{lead.phone || 'N/A'}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatPhoneNumber(lead.phone)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{formatRelativeTime(lead.last_contact_at)}</TableCell>
                             <TableCell>
                               <div className="flex justify-end gap-2">
