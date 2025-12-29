@@ -26,7 +26,6 @@ const MyProfile = () => {
   const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminId, setAdminId] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -41,6 +40,7 @@ const MyProfile = () => {
   const fetchAdminProfile = async () => {
     try {
       setLoading(true);
+
       // Get admin email from localStorage (set during login)
       const adminEmail = localStorage.getItem("adminEmail");
 
@@ -50,10 +50,25 @@ const MyProfile = () => {
           description: "No admin session found. Please log in again.",
           variant: "destructive",
         });
+        // Load fallback data
+        setFormData({
+          name: "Admin",
+          email: "admin@example.com",
+          phone: "+91 9640549549",
+          role: "Administrator",
+          organization: "Subbu Innovative Classes",
+          address: "Hyderabad, Telangana, India",
+        });
+        setLoading(false);
         return;
       }
 
-      // Fetch admin data with organization join
+      // Check if Supabase client is properly initialized
+      if (!supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+
+      // Fetch admin data with organization join using service role for authentication
       const { data: adminData, error: adminError } = await supabase
         .from("admins")
         .select(`
@@ -68,16 +83,39 @@ const MyProfile = () => {
           )
         `)
         .eq("email", adminEmail)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to avoid errors when no data
 
-      if (adminError) throw adminError;
+      // Handle specific error cases
+      if (adminError) {
+        if (adminError.code === 'PGRST116' || adminError.message?.includes('0 rows')) {
+          // No admin found with this email
+          console.warn("No admin profile found for:", adminEmail);
+          toast({
+            title: "⚠️ Profile Not Found",
+            description: "Admin profile not found. Using default data.",
+            variant: "destructive",
+          });
+        } else if (adminError.code === '401' || adminError.message?.includes('JWT')) {
+          // Authentication issue
+          console.error("Authentication error:", adminError);
+          toast({
+            title: "🔒 Authentication Error",
+            description: "Session expired. Please log in again.",
+            variant: "destructive",
+          });
+          // Optionally redirect to login
+          // window.location.href = "/login";
+        } else {
+          // Other errors
+          throw adminError;
+        }
+      }
 
       if (adminData) {
         setAdminId(adminData.id);
-        setOrganizationId(adminData.organization_id);
         setCreatedAt(adminData.created_at);
 
-        // ✅ FIX: Handle organizations as array from Supabase join
+        // Handle organizations as array from Supabase join
         const orgArray = adminData.organizations as { name: string; domain: string }[] | null;
         const orgData = orgArray && orgArray.length > 0 ? orgArray[0] : null;
 
@@ -86,15 +124,34 @@ const MyProfile = () => {
           email: adminData.email,
           phone: "+91 9640549549",
           role: "Administrator",
-          organization: orgData?.name || "Not Assigned",  // ✅ FIXED
+          organization: orgData?.name || "Not Assigned",
+          address: "Hyderabad, Telangana, India",
+        });
+      } else {
+        // No data returned - use fallback
+        setFormData({
+          name: "Admin",
+          email: adminEmail,
+          phone: "+91 9640549549",
+          role: "Administrator",
+          organization: "Subbu Innovative Classes",
           address: "Hyderabad, Telangana, India",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching admin profile:", error);
+
+      // Provide more specific error messages
+      let errorMessage = "Failed to load profile data";
+      if (error?.message?.includes("fetch")) {
+        errorMessage = "Network error. Please check your connection.";
+      } else if (error?.code === "PGRST301") {
+        errorMessage = "Database query error. Please contact support.";
+      }
+
       toast({
         title: "❌ Error",
-        description: "Failed to load profile data",
+        description: errorMessage,
         variant: "destructive",
       });
 

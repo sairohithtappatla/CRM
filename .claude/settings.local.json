@@ -24,7 +24,11 @@
       "Bash(test:*)",
       "Bash(python -m json.tool:*)",
       "Bash(/dev/null)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(cat:*)",
+      "Bash(ls -la \"D:\\\\WORK\\\\agents\\\\subbu-innovative-classes\\\\subbu-connect-main\\\\.env\"*)",
+      "Bash(node --version:*)",
+      "Bash(ls:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

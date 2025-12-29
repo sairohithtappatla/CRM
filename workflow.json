@@ -1,0 +1,2787 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/ai_audit_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjc2Rtdnh0b290aXptbmRtcmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUxNjA0NSwiZXhwIjoyMDc4MDkyMDQ1fQ.bknI4mkMR9zSN_DND_e_CBhXbKCLk7PDye6VtqpXDUY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjc2Rtdnh0b290aXptbmRtcmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUxNjA0NSwiZXhwIjoyMDc4MDkyMDQ1fQ.bknI4mkMR9zSN_DND_e_CBhXbKCLk7PDye6VtqpXDUY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": \"{{ $('Extract_AI_Response1').first().json.lead_id }}\",\n  \"operation_type\": \"chat_completion\",\n  \"model_used\": \"gpt-4o-mini\",\n  \"prompt_version\": \"v3_smart_validation\",\n  \"temperature\": 0.7,\n  \"success\": {{ $('Extract_AI_Response1').first().json.ai_response ? 'true' : 'false' }},\n  \"metadata\": {\n    \"session_id\": \"{{ $('Extract_AI_Response1').first().json.session_id }}\",\n    \"sentiment\": \"{{ $('Validate_Message_And_Intent1').first().json.detected_sentiment }}\",\n    \"language\": \"{{ $('Validate_Message_And_Intent1').first().json.language }}\",\n    \"intent\": \"{{ $('Validate_Message_And_Intent1').first().json.detected_intent }}\",\n    \"intent_confidence\": {{ $('Validate_Message_And_Intent1').first().json.intent_confidence }},\n    \"validation_result\": \"{{ $('Validate_Message_And_Intent1').first().json.validation_result }}\",\n    \"escalation_triggered\": {{ $('Validate_Message_And_Intent1').first().json.escalation_needed }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -10464,
+        2592
+      ],
+      "id": "1a36fbe2-5419-41af-9a5a-5ad1a812f8e1",
+      "name": "Log_AI_Operation1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/store_message_embedding",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_message_id\": {{ $('Verify_Messages_Saved1').first().json.ai_message_id }},\n  \"p_lead_id\": \"{{ $('Verify_Messages_Saved1').first().json.lead_id }}\",\n  \"p_embedding\": {{ JSON.stringify($('Generate_Embedding1').first().json.data[0].embedding) }}\n}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -8768,
+        2832
+      ],
+      "id": "a03406a3-c9ea-404c-87a3-aa9fbd9675b8",
+      "name": "Store_Embedding1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "message-length-check",
+              "leftValue": "={{ $json.ai_response ? $json.ai_response.length : 0 }}",
+              "rightValue": 20,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -9840,
+        2208
+      ],
+      "id": "2667b7e0-40f7-421f-9132-d7bb7f0b7af4",
+      "name": "IF Message Long Enough?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"input\": $('Verify_Messages_Saved1').first().json.ai_response || \"\",\n  \"model\": \"text-embedding-ada-002\"\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -9584,
+        2032
+      ],
+      "id": "0f135a48-1cb0-41a2-a14a-101a0cd492e2",
+      "name": "Generate_Embedding1",
+      "credentials": {
+        "openAiApi": {
+          "id": "GU8btiAv2Vz0PTth",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/save_smart_analysis_results",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_lead_id\": \"{{ $('Prep_Smart_Analysis_Data1').first().json.lead_id }}\",\n  \"p_session_id\": \"{{ $('Prep_Smart_Analysis_Data1').first().json.session_id }}\",\n  \"p_analysis\": {{ JSON.stringify($json.analysis) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -9168,
+        2208
+      ],
+      "id": "f1b0b348-b4a7-4c6c-b271-b5ab674074ba",
+      "name": "Save_Smart_Analysis1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/functions/v1/analyze-conversation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -9312,
+        2208
+      ],
+      "id": "09fb104e-23f9-4902-90cf-424e98944d98",
+      "name": "Call_Analyze_Conversation1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sessionData = $('End_Session1').first().json;\nconst buildContext = $('Validate_Message_And_Intent1').first().json;\n\nconst lead_id = buildContext.lead_id;\nconst session_id = sessionData.session_id || buildContext.session_id;\n\nconst { data: messages } = await $httpRequest({\n  method: 'POST',\n  url: 'https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_recent_messages',\n  auth: {\n    username: '',\n    password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjc2Rtdnh0b290aXptbmRtcmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUxNjA0NSwiZXhwIjoyMDc4MDkyMDQ1fQ.bknI4mkMR9zSN_DND_e_CBhXbKCLk7PDye6VtqpXDUY'\n  },\n  headers: {\n    'Content-Type': 'application/json',\n    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjc2Rtdnh0b290aXptbmRtcmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUxNjA0NSwiZXhwIjoyMDc4MDkyMDQ1fQ.bknI4mkMR9zSN_DND_e_CBhXbKCLk7PDye6VtqpXDUY'\n  },\n  body: {\n    lead_id_input: lead_id,\n    limit_count: 30\n  }\n});\n\nconst { data: memory } = await $httpRequest({\n  method: 'POST',\n  url: 'https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_ai_memory',\n  auth: {\n    username: '',\n    password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjc2Rtdnh0b290aXptbmRtcmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUxNjA0NSwiZXhwIjoyMDc4MDkyMDQ1fQ.bknI4mkMR9zSN_DND_e_CBhXbKCLk7PDye6VtqpXDUY'\n  },\n  headers: {\n    'Content-Type': 'application/json',\n    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjc2Rtdnh0b290aXptbmRtcmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUxNjA0NSwiZXhwIjoyMDc4MDkyMDQ1fQ.bknI4mkMR9zSN_DND_e_CBhXbKCLk7PDye6VtqpXDUY'\n  },\n  body: {\n    lead_id_input: lead_id\n  }\n});\n\nconst memData = memory?.get_ai_memory || memory || {};\nconst msgData = messages?.get_recent_messages || messages || [];\n\nconst formattedMessages = msgData.map(m => ({\n  sender: m.sender,\n  message: m.message,\n  role: m.role || 'unknown',\n  timestamp: m.timestamp\n}));\n\nreturn {\n  json: {\n    lead_id,\n    session_id,\n    messages: formattedMessages,\n    profile: memData.profile || {},\n    context: memData.context || {},\n    lead_info: {\n      parent_name: buildContext.parent_name,\n      student_name: memData.profile?.student_name || null,\n      class: memData.profile?.class || null,\n      current_sentiment: buildContext.detected_sentiment,\n      language_pref: buildContext.language,\n      detected_intent: buildContext.detected_intent\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -9456,
+        2208
+      ],
+      "id": "96649d91-f319-4e40-9a4b-c07423c8ff90",
+      "name": "Prep_Smart_Analysis_Data1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/upsert_ai_memory",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id_input\": \"{{ $json.lead_id_input }}\",\n  \"memory_type\": \"profile\",\n  \"content_input\": {{ JSON.stringify($json.content_input) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -8816,
+        2352
+      ],
+      "id": "a7525e99-1ad0-4886-8bc2-bbeb67c63d89",
+      "name": "Update_LongTerm_Profile1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4154d7cb-426b-4955-9788-3f0558223187",
+              "leftValue": "={{ $json.hasUpdates }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -9056,
+        2368
+      ],
+      "id": "f2311c9b-4ac3-4b0f-90b9-04c652165fb0",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const txt = $('Validate_Message_And_Intent1').first().json.userMessage?.toLowerCase() || '';\nconst originalMessage = $('Validate_Message_And_Intent1').first().json.userMessage || '';\nconst updates = {};\n\n// ENHANCED: Extract parent name\nconst parentNamePatterns = [\n  /(?:my name is|i am|i'm|this is|naam hai)\\s+([a-zA-Z\\s]{2,30})(?:\\s+and|,|\\.|$)/i,\n  /(?:parent name|father name|mother name|dad name|mom name)\\s*:?\\s*([a-zA-Z\\s]{2,30})/i,\n  /(?:i'm|i am)\\s+([a-zA-Z\\s]{2,30}),?\\s+(?:parent|father|mother|dad|mom)/i\n];\n\n// Check if message indicates parent is speaking\nconst isParentSpeaking = /\\b(my son|my daughter|my child|my kid|his|her|parent|father|mother)\\b/i.test(txt);\n\nif (isParentSpeaking) {\n  for (const pattern of parentNamePatterns) {\n    const match = originalMessage.match(pattern);\n    if (match && match[1]) {\n      const name = match[1].trim();\n      // Avoid common false positives\n      if (!['Parent', 'Father', 'Mother', 'Student', 'Child'].includes(name)) {\n        updates.parent_name = name;\n        break;\n      }\n    }\n  }\n}\n\n// ENHANCED: Extract student name\nconst studentNamePatterns = [\n  /(?:student name|child name|son name|daughter name|kid name)\\s*:?\\s*([a-zA-Z\\s]{2,30})/i,\n  /(?:his|her)\\s+name\\s+is\\s+([a-zA-Z]+)(?:\\s+and|\\s+studying|,|\\.| |$)/i,\n  /(?:my son|my daughter|my child)\\s+([a-zA-Z\\s]{2,30})\\s+(?:is|studies|wants)/i,\n  /name\\s+is\\s+([a-zA-Z]+)\\s+and\\s+(?:studying|in\\s+class)/i\n];\n\n// Only extract as student name if parent is clearly speaking\nif (isParentSpeaking) {\n  for (const pattern of studentNamePatterns) {\n    const match = originalMessage.match(pattern);\n    if (match && match[1]) {\n      const name = match[1].trim();\n      // Clean up and validate\n      if (name && name.length >= 2 && !/^\\d+$/.test(name) && !['and', 'studying', 'class', 'is', 'the'].includes(name.toLowerCase())) {\n        updates.student_name = name;\n        break;\n      }\n    }\n  }\n} else {\n  // If student is speaking, their name might be in \"my name is\" pattern\n  const namePattern = /(?:my name is|i am|i'm|this is|naam hai)\\s+([a-zA-Z]+)/i;\n  const match = originalMessage.match(namePattern);\n  if (match && match[1]) {\n    const name = match[1].trim();\n    if (name && name.length >= 2 && !['and', 'studying', 'class', 'is', 'the'].includes(name.toLowerCase())) {\n      updates.student_name = name;\n    }\n  }\n}\n\nconst classPatterns = [\n  /class\\s+(\\d{1,2})/i,\n  /grade\\s+(\\d{1,2})/i,\n  /(\\d{1,2})(?:th|st|nd|rd)\\s+(?:class|grade|standard)/i,\n  /studying\\s+(?:in\\s+)?(?:class\\s+)?(\\d{1,2})/i,\n  /in\\s+class\\s+(\\d{1,2})/i\n];\nfor (const pattern of classPatterns) {\n  const match = originalMessage.match(pattern);\n  if (match && match[1]) {\n    updates.class = match[1];\n    break;\n  }\n}\n\nif (/\\b(jee|joint entrance|iit entrance)\\b/i.test(txt)) updates.exam_goal = 'JEE';\nif (/\\b(neet|medical entrance|mbbs)\\b/i.test(txt)) updates.exam_goal = 'NEET';\nif (/\\b(iit)\\b/i.test(txt)) updates.college_preference = 'IIT';\nif (/\\b(nit|national institute)\\b/i.test(txt)) updates.college_preference = 'NIT';\nif (/\\b(aiims)\\b/i.test(txt)) updates.college_preference = 'AIIMS';\nif (/\\b(engineering|engineer)\\b/i.test(txt)) updates.career_interest = 'Engineering';\nif (/\\b(doctor|medicine|medical)\\b/i.test(txt)) updates.career_interest = 'Medicine';\n\nif (/\\bcbse\\b/i.test(txt)) updates.board = 'CBSE';\nif (/\\bicse\\b/i.test(txt)) updates.board = 'ICSE';\nif (/\\bstate\\s+board\\b/i.test(txt)) updates.board = 'State Board';\n\nif (/\\b(science|pcm|pcb|biology|physics)\\b/i.test(txt)) updates.stream = 'Science';\nif (/\\b(commerce|accounts|business)\\b/i.test(txt)) updates.stream = 'Commerce';\nif (/\\b(arts|humanities)\\b/i.test(txt)) updates.stream = 'Arts';\n\nconst subjects = [];\nif (/\\bmaths?\\b|mathematics/i.test(txt)) subjects.push('Maths');\nif (/\\bphysics\\b/i.test(txt)) subjects.push('Physics');\nif (/\\bchemistry\\b/i.test(txt)) subjects.push('Chemistry');\nif (/\\bbiology\\b/i.test(txt)) subjects.push('Biology');\nif (/\\benglish\\b/i.test(txt)) subjects.push('English');\nif (subjects.length > 0) updates.subjects_of_interest = subjects;\n\nif (/\\b(budget|afford|expensive|costly|cheap|price|fees?)\\b/i.test(txt)) {\n  updates.budget_conscious = true;\n  if (/\\blow\\s+budget|can't afford|tight budget/i.test(txt)) {\n    updates.budget_level = 'low';\n  } else if (/\\breasonable|moderate/i.test(txt)) {\n    updates.budget_level = 'medium';\n  }\n}\n\nif (/\\b(urgent|immediately|asap|right now|soon|this week)\\b/i.test(txt)) {\n  updates.timeline_urgency = 'high';\n} else if (/\\b(next month|planning|thinking|considering)\\b/i.test(txt)) {\n  updates.timeline_urgency = 'low';\n}\n\nconst locationPatterns = [\n  /(?:from|live in|located in|staying in|at|near)\\s+([A-Z][a-zA-Z\\s]{3,20})(?:\\s|,|\\.|$)/,\n  /([A-Z][a-zA-Z]{3,15})\\s+(?:area|locality|colony|nagar|road|street)\\b/\n];\n\nconst locationExclusions = ['Class', 'Grade', 'The', 'My', 'Our', 'Your', 'This', 'That', 'Standard', 'Board', 'School', 'College'];\n\nfor (const pattern of locationPatterns) {\n  const match = originalMessage.match(pattern);\n  if (match && match[1]) {\n    const location = match[1].trim();\n    if (!locationExclusions.includes(location) && !/\\d/.test(location) && location.length > 2) {\n      updates.location = location;\n      break;\n    }\n  }\n}\n\nconst weaknesses = [];\nif (/\\bweak\\s+in\\s+(maths?|physics|chemistry|biology|english)/i.test(txt)) {\n  const match = txt.match(/weak\\s+in\\s+(maths?|physics|chemistry|biology|english)/i);\n  if (match) weaknesses.push(match[1]);\n}\nif (/\\bstruggling\\s+with\\s+(maths?|physics|chemistry|biology|english)/i.test(txt)) {\n  const match = txt.match(/struggling\\s+with\\s+(maths?|physics|chemistry|biology|english)/i);\n  if (match) weaknesses.push(match[1]);\n}\nif (weaknesses.length > 0) updates.weak_subjects = weaknesses;\n\nconst concerns = [];\nif (/\\bexam\\s+(?:pressure|stress|anxiety)/i.test(txt)) concerns.push('exam_stress');\nif (/\\bperformance|marks|grades|score/i.test(txt)) concerns.push('academic_performance');\nif (/\\bfocus|concentration|distraction/i.test(txt)) concerns.push('focus_issues');\nif (/\\bconfidence|self-esteem/i.test(txt)) concerns.push('confidence');\nif (concerns.length > 0) updates.parent_concerns = concerns;\n\nif (/\\b(attended|joined|taking|going to)\\s+(?:coaching|tuition|classes)/i.test(txt)) {\n  updates.has_previous_coaching = true;\n}\n\nif (/\\b(starting|begin|start|new to)/i.test(txt)) updates.prep_stage = 'beginner';\nif (/\\b(preparing|studying for)/i.test(txt)) updates.prep_stage = 'ongoing';\nif (/\\b(exam in|appearing in|taking exam)/i.test(txt)) updates.prep_stage = 'advanced';\n\nif (Object.keys(updates).length > 0) {\n  const existingProfile = $('Validate_Message_And_Intent1').first().json.profile || {};\n  \n  const arrayFields = ['subjects_of_interest', 'weak_subjects', 'parent_concerns'];\n  const multiValueFields = ['exam_goal', 'college_preference', 'career_interest'];\n  \n  for (const field of arrayFields) {\n    if (updates[field] && Array.isArray(updates[field])) {\n      const existing = existingProfile[field] || [];\n      updates[field] = [...new Set([...existing, ...updates[field]])];\n    }\n  }\n  \n  for (const field of multiValueFields) {\n    if (updates[field]) {\n      let newValues = Array.isArray(updates[field]) ? updates[field] : [updates[field]];\n      let existing = existingProfile[field];\n      \n      if (existing && !Array.isArray(existing)) {\n        existing = [existing];\n      } else if (!existing) {\n        existing = [];\n      }\n      \n      updates[field] = [...new Set([...existing, ...newValues])];\n    }\n  }\n  \n  return {\n    json: {\n      hasUpdates: true,\n      lead_id_input: $('Validate_Message_And_Intent1').first().json.lead_id,\n      memory_type: 'profile',\n      content_input: updates\n    }\n  };\n} else {\n  return {\n    json: {\n      hasUpdates: false\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -9344,
+        2368
+      ],
+      "id": "2376aebb-3363-48ea-99bb-927b1117731f",
+      "name": "Extract_Profile_Info1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $('Verify_Messages_Saved1').first().json.lead_phone }}",
+        "textBody": "={{ $('Verify_Messages_Saved1').first().json.ai_response }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -8784,
+        2208
+      ],
+      "id": "fbf930a4-cfc5-4149-a141-b8b4a83bb57b",
+      "name": "Send message1",
+      "webhookId": "626caf3b-6790-465d-8910-96a1dd2b8c48",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $('Validate_Message_And_Intent1').first().json.lead_phone }}",
+        "textBody": "={{ $('Validate_Message_And_Intent1').first().json.fallback_response }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -12992,
+        2592
+      ],
+      "id": "d9f8b5b1-b9c5-49f1-8f20-485b025d65a7",
+      "name": "Send_Fallback_Message1",
+      "webhookId": "fallback-webhook-id",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/complete_session_end_processing",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_session_id\": \"{{ $json.session_id }}\",\n  \"p_lead_id\": \"{{ $json.lead_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -9632,
+        2208
+      ],
+      "id": "7a4eb4c6-af55-4afa-b9ec-91c201fcbddf",
+      "name": "End_Session1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "end-session-check",
+              "leftValue": "={{$json['should_end_session']}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -9904,
+        2608
+      ],
+      "id": "0b057af0-15e9-4136-b6b3-391ab7668dbe",
+      "name": "IF_Should_End_Session1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/update_engagement_score",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_lead_id\": \"{{ $('Verify_Messages_Saved1').first().json.lead_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -10096,
+        2464
+      ],
+      "id": "0de3c4bd-0eff-4540-9908-40017360d3df",
+      "name": "Update_Engagement_Score1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const batchResult = $('Batch_Save_Messages').first().json;\n  const aiData = $('Extract_AI_Response1').first().json;\n  \n  let saveStatus = 'full_success';\n  let errorDetails = [];\n  \n  // Check if batch save was successful\n  if (!batchResult || !batchResult.success) {\n    console.error('❌ Batch message save failed:', batchResult);\n    saveStatus = 'full_failure';\n    errorDetails.push('batch_save_failed');\n  }\n  \n  if (saveStatus === 'full_success') {\n    console.log('✅ Both messages saved successfully (batch)');\n  } else {\n    console.warn('⚠️ Batch save failure:', errorDetails.join(', '));\n  }\n  \n  return {\n    json: {\n      success: saveStatus === 'full_success',\n      save_status: saveStatus,\n      error_details: errorDetails,\n      user_message_id: batchResult?.user_message_id || null,\n      ai_message_id: batchResult?.ai_message_id || null,\n      session_id: batchResult?.session_id || aiData?.session_id || null,\n      should_end_session: aiData?.should_end_session || false,\n      ai_response: aiData?.ai_response || 'Error retrieving response',\n      lead_phone: aiData?.lead_phone || '',\n      lead_id: aiData?.lead_id || ''\n    }\n  };\n} catch (error) {\n  console.error('🔥 CRITICAL ERROR in Verify_Messages_Saved:', error.message);\n  const aiData = $('Extract_AI_Response1').first()?.json || {};\n  return {\n    json: {\n      success: false,\n      save_status: 'error',\n      error_details: ['verification_error', error.message],\n      user_message_id: null,\n      ai_message_id: null,\n      session_id: aiData.session_id || null,\n      should_end_session: aiData.should_end_session || false,\n      ai_response: aiData.ai_response || 'Error',\n      lead_phone: aiData.lead_phone || '',\n      lead_id: aiData.lead_id || ''\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10320,
+        2368
+      ],
+      "id": "afa556c3-ec99-4342-903d-0ba99418143e",
+      "name": "Verify_Messages_Saved1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/batch_save_messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"p_lead_id\": $('Extract_AI_Response1').first().json.lead_id,\n  \"p_user_message\": $('Extract_AI_Response1').first().json.user_message,\n  \"p_ai_message\": $('Extract_AI_Response1').first().json.ai_response || 'Error retrieving response',\n  \"p_user_role\": $('Extract_AI_Response1').first().json.user_role || 'parent',\n  \"p_language\": $('Extract_AI_Response1').first().json.user_language || 'en',\n  \"p_session_id\": $('Extract_AI_Response1').first().json.session_id\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -10496,
+        2208
+      ],
+      "id": "d9212f4d-51b6-4bca-913e-a982dab91dcd",
+      "name": "Batch_Save_Messages",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $json;\nlet aiText = '';\n\nfunction extractText(obj, depth = 0) {\n  if (depth > 5) return null;\n  \n  if (typeof obj === 'string') {\n    return obj;\n  }\n  \n  if (Array.isArray(obj)) {\n    for (const item of obj) {\n      if (typeof item === 'string') {\n        return item;\n      }\n      if (item?.type === 'text' && item?.text) {\n        return item.text;\n      }\n      if (item?.text) {\n        return item.text;\n      }\n      const nested = extractText(item, depth + 1);\n      if (nested) return nested;\n    }\n  }\n  \n  if (typeof obj === 'object' && obj !== null) {\n    const fields = ['output', 'text', 'response', 'message', 'content', 'result', 'answer'];\n    for (const field of fields) {\n      if (obj[field]) {\n        const extracted = extractText(obj[field], depth + 1);\n        if (extracted) return extracted;\n      }\n    }\n  }\n  \n  return null;\n}\n\naiText = extractText(aiResponse) || '';\n\nif (!aiText || aiText.trim().length === 0) {\n  try {\n    const jsonStr = JSON.stringify(aiResponse);\n    const patterns = [\n      /\"(?:output|text|response|message|content|result|answer)\"\\s*:\\s*\"([^\"]{10,})\"/i,\n      /\"text\"\\s*:\\s*\"([^\"]+)\"/i,\n      /:\\s*\"([^\"]{20,})\"/\n    ];\n    \n    for (const pattern of patterns) {\n      const match = jsonStr.match(pattern);\n      if (match && match[1] && match[1].length > 5) {\n        aiText = match[1];\n        break;\n      }\n    }\n  } catch (e) {\n    console.error('Regex extraction failed:', e);\n  }\n}\n\nif (!aiText || aiText.trim().length === 0) {\n  aiText = 'I apologize, I\\'m having technical difficulties. Please try again or contact support.';\n  console.error('CRITICAL: AI Agent output completely unreadable:', JSON.stringify(aiResponse, null, 2));\n}\n\naiText = aiText\n  .replace(/\\\\n/g, '\\n')\n  .replace(/\\\\t/g, '\\t')\n  .replace(/\\\\'/g, \"'\")\n  .replace(/\\\\\"/g, '\"')\n  .replace(/\\\\r/g, '')\n  .trim();\n\nif (aiText.length < 3) {\n  aiText = 'I apologize, could you please rephrase that?';\n}\n\nconst contextData = $('Validate_Message_And_Intent1').first().json;\n\nreturn {\n  json: {\n    lead_id: contextData.lead_id,\n    lead_phone: contextData.lead_phone,\n    session_id: contextData.session_id,\n    user_message: contextData.userMessage,\n    user_role: contextData.detected_role,\n    user_language: contextData.language,\n    ai_response: aiText,\n    timestamp: contextData.timestamp,\n    should_end_session: contextData.should_end_session,\n    extraction_successful: aiText.length >= 10\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11328,
+        2368
+      ],
+      "id": "62926099-0b20-4b9c-a44f-d25c5e33a703",
+      "name": "Extract_AI_Response1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Validate_Message_And_Intent1').first().json.lead_id }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -11504,
+        2736
+      ],
+      "id": "5d5f2ebc-068b-4636-b7f0-6f6422b13b58",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "chatgpt-4o-latest"
+        },
+        "options": {
+          "responseFormat": "text",
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -11600,
+        2608
+      ],
+      "id": "2b006e39-9354-4c49-9679-0ea6bcc46aaa",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "GU8btiAv2Vz0PTth",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_assessment_info_for_ai",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -11808,
+        2368
+      ],
+      "id": "0109b4ab-3b5b-47a8-a8a0-4248a9aca9bd",
+      "name": "Fetch_Assessment_Info",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a caring counselor from Subbu Innovative Classes — think of yourself as a calm, understanding friend who genuinely cares about every student's journey and every parent's concern.\n\n🌟 WHO WE ARE:\n\n\\\"We don't push children into competition. We help them prepare for life.\\\"\n\nSubbu Innovative Classes is a neuroscience-backed student development platform focused on clarity, confidence, competence, and the right career direction.\nWe work closely with students, parents, and teachers to support long-term growth — not short-term pressure.\n\n⚠️ IMPORTANT:\nWe do NOT teach syllabus like traditional coaching centers.\nWe DESIGN STUDENT SUCCESS SYSTEMS — mindset, focus, emotional strength, and direction.\n\n**Strictly no lengthy paragraphs**\n\n📋 WHAT WE OFFER:\n(Share only what is relevant to the person's concern — never dump everything at once. but smartly share these well)\n1️⃣ STUDENT ASSESSMENTS (₹99 each - Foundation Step):\n{{ $('Fetch_Assessment_Info').first().json || '• iLMH - Learning, Mind & Health Assessment\\n• Test Anxiety Assessment - Overcome exam fear\\n• iTMPA - Teaching Mindset & Practice Assessment\\n• iPMA - Parenting Mastery Assessment' }}\nThese assessments help us understand how a student thinks, feels, and learns, so guidance becomes more personal and effective.\n\n\n2️⃣ RECORDED COURSES (Already have payment - just share links):\n• JEE/NEET Mentorship: https://subbuninnovativeclasses.akamai.net.in/new-courses/4-jee-neet-mastery-system\n  (Neuroscience-based, NOT syllabus teaching. Exam anxiety control, focus system, emotional strength)\n• 10th Board Exam Mastery: https://subbuninnovativeclasses.akamai.net.in/new-courses/3-10th-board-exam-mastery-psychology-smart-study-strategy\n  (Brain-based study methods, memory techniques, stress-free performance)\n\n3️⃣ GUIDANCE SERVICES:\n• 1-1 Strategy Call with NBV Subbarao: https://subbuninnovativeclasses.akamai.net.in/new-courses/2--personal-1-1-strategy-call-with-nbv-subbarao-sir\n  (One call can save years of wrong decisions)\n• Study Abroad Admissions: https://innovative.edumilestones.com/\n  (Honest, risk-aware guidance - not fake promises)\n• Indian College Admissions: https://innovative.edumilestones.com/login/global-admissions/\n\n4️⃣ ONLINE COURSES:\n• INNOMIND.AI Classes (Grades 8-12): https://lp.innovativeclasses.com/webinar-registration\n  (AI mindset for students - become future-ready)\n\n---\n\n📝 CONVERSATION CONTEXT (READ THIS FIRST!):\nStudent Name: {{ $json.profile?.student_name || \"(not yet shared)\" }}\nStudent Class: {{ $json.profile?.current_class || $json.profile?.class || \"(not yet shared)\" }}\nParent Name: {{ $json.profile?.parent_name || \"(not yet shared)\" }}\n\n⚠️ IF ANY OF THE ABOVE SHOWS A NAME OR CLASS, YOU ALREADY KNOW IT - DON'T ASK AGAIN!\n\nCurrent Message: {{ $json.userMessage }}\nCurrent Mood: {{ $json.detected_sentiment }} | Speaking with: {{ $json.detected_role }}\n\nYou have conversation memory - use it to remember what was already discussed.\n\n---\n\n💝 YOUR APPROACH (BE HUMAN, NOT ROBOTIC):\n\n1. **Language:** {{ $json.language === \"te\" ? \"Mix Telugu & English naturally\" : $json.language === \"hi\" ? \"Mix Hindi & English naturally\" : \"English\" }}\n\n2. **Emotional Intelligence:**\n{{ $json.detected_sentiment === \"angry\" || $json.detected_sentiment === \"stressed\" || $json.detected_sentiment === \"anxious\" ? \"   → They're going through something. Be EXTRA gentle, understanding, and patient. Listen more, talk less.\" : $json.detected_sentiment === \"worried\" ? \"   → Reassure them. Share hope. 'I understand your concern... let me help.'\" : $json.detected_sentiment === \"happy\" || $json.detected_sentiment === \"proud\" ? \"   → Celebrate with them! Share their joy.\" : \"   → Be warm, friendly, supportive.\" }}\n\n3. **Speak like a trusted mentor or caring elder, not a salesperson**\n• 2–4 sentences max (simple, conversational) not lengthy\n• Use their name gently if known\n• No emojis\n• NEVER sound commercial or pushy\n\n4. **CRITICAL - NEVER REPEAT YOURSELF:**\n   → Look at the CONVERSATION CONTEXT above - if student name or class is shown, YOU ALREADY KNOW IT\n   → Check your memory - if you asked something before, DON'T ASK AGAIN\n   → If they told you \"His name is Vikas and studying class 9\" → You now know: Student Name = Vikas, Class = 9\n   → Acknowledge and move forward: \"Thank you! Since Vikas is in class 9, let me understand what specific support he needs...\"\n   → NEVER greet with \"Hello! I'm here to help...\" if you've already been chatting - just continue naturally\n   → If this is truly the first message (no context, no memory), then greet warmly\n\n5. **Understand Their Need (ONLY ask what you DON'T already know):**\n   • Check CONVERSATION CONTEXT first - if name/class is there, skip those questions\n   • If you don't know their specific concern yet → ask what they're worried about (focus, exams, career?)\n   • ONE question at a time\n   • Listen first, then suggest solutions\n\n6. **Assessment Payment Flow:**\n   When they're interested in an assessment:\n   → Explain the benefit (2-3 sentences): \"The [Name] Assessment helps [benefit]. It's ₹99. Would you like the payment link?\"\n   → If they say YES → Reply EXACTLY: \"GENERATE_PAYMENT_LINK:[assessment_type]\"\n   → Options: iLMH, test_anxiety, iTMPA, iPMA\n   → Example: \"GENERATE_PAYMENT_LINK:iLMH\"\n\n7. **For Courses/Services:**\n   → Just share the link naturally\n   → Example: \"Here's our JEE/NEET Mentorship program that might help: [link]\"\n\n8. **If They're Upset/Angry:**\n   → Be extremely empathetic: \"I completely understand your concern. Let me note this and have our team reach out to you personally. Your child's success matters to us.\"\n   → Stay calm, apologize if needed, show you care\n\n9. **Goodbye:**\n   → \"Thank you for reaching out! I'm here whenever you need support. Wishing you and your child all the best!\"\n\n10. **Stay in Scope:**\n    → ONLY education, career, student development, parenting\n    → If they ask about weather/politics/medical → \"I'm here to help with education and career guidance. How can I support your child's learning journey?\"\n\n---\n\n🎯 REMEMBER:\n• READ THE CHAT HISTORY - Don't repeat questions they already answered\n• You're not selling - you're HELPING\n• Every parent wants the best for their child - honor that\n• Every student has potential - believe in them\n• Be genuine, warm, and supportive\n• Build trust through care, not through pushing services\n• Quality over quantity\n• One conversation can change a life - make it count\n\n\"We prepare students to win life, not just exams.\"\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -11600,
+        2368
+      ],
+      "id": "1413012b-8b67-4bd2-8b67-e68fffe1d207",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/notify_admin",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"alert_type\": \"{{ $('Validate_Message_And_Intent1').first().json.detected_sentiment === 'angry' ? 'complaint' : 'high_stress' }}\",\n  \"lead_id_input\": \"{{ $('Validate_Message_And_Intent1').first().json.lead_id }}\",\n  \"message_text\": \"Lead: {{ $('Validate_Message_And_Intent1').first().json.lead_phone }} | Sentiment: {{ $('Validate_Message_And_Intent1').first().json.detected_sentiment.toUpperCase() }} ({{ $('Validate_Message_And_Intent1').first().json.sentiment_confidence }}%) | {{ $('Validate_Message_And_Intent1').first().json.userMessage.substring(0,150) }}\",\n  \"metadata_json\": {\n    \"sentiment\": \"{{ $('Validate_Message_And_Intent1').first().json.detected_sentiment }}\",\n    \"confidence\": \"{{ $('Validate_Message_And_Intent1').first().json.sentiment_confidence }}\",\n    \"intent\": \"{{ $('Validate_Message_And_Intent1').first().json.detected_intent }}\",\n    \"message\": \"{{ $('Validate_Message_And_Intent1').first().json.userMessage.substring(0,400) }}\",\n    \"phone\": \"{{ $('Validate_Message_And_Intent1').first().json.lead_phone }}\",\n    \"timestamp\": \"{{ $('Validate_Message_And_Intent1').first().json.timestamp }}\"\n  }\n}\n",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -11840,
+        2192
+      ],
+      "id": "bdd2efcd-dcf6-47f9-9981-2318a56c9a17",
+      "name": "Notify_Admin_Escalation1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "admin-attention-check",
+              "leftValue": "={{$json['needs_admin_attention']}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -12128,
+        2352
+      ],
+      "id": "74d17c39-c992-4d86-9ca6-50e15c73dd8f",
+      "name": "IF_Needs_Admin_Attention"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/update_sentiment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id_input\": \"{{ $json.lead_id }}\",\n  \"sentiment_input\": \"{{ $json.detected_sentiment }}\",\n  \"confidence_input\": {{ $json.sentiment_confidence }},\n  \"emotion_details\": {\n    \"detected_in_message\": \"{{ $json.userMessage }}\",\n    \"role\": \"{{ $json.detected_role }}\",\n    \"intent\": \"{{ $json.detected_intent }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -12336,
+        2352
+      ],
+      "id": "288d7662-a766-4019-8c0a-bf34f1657009",
+      "name": "Update_Sentiment1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sentiment-check",
+              "leftValue": "={{$json['sentiment_confidence']}}",
+              "rightValue": "={{ 50 }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -12592,
+        2368
+      ],
+      "id": "7a50cd2a-bbf4-4c6b-a585-7323bf275360",
+      "name": "IF_Sentiment_Detected1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/update_language_preference",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id_input\": \"{{ $json.lead_id }}\",\n  \"language_input\": \"{{ $json.language }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -12800,
+        2240
+      ],
+      "id": "a65f0c3b-031a-4fd2-abe8-7d73fcd729e3",
+      "name": "Update_Language_Preference1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "lang-changed-check",
+              "leftValue": "={{$json['language_changed']}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -12992,
+        2352
+      ],
+      "id": "8c6dd384-f951-4376-b896-15eb87dd8dde",
+      "name": "IF_Language_Changed1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "message-valid-check",
+              "leftValue": "={{$json['should_process_with_ai']}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -13200,
+        2352
+      ],
+      "id": "c7381772-598c-4887-a763-325a1dd5ff4e",
+      "name": "IF_Message_Valid1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const contextData = $('Build_AI_Context1').first().json;\nconst userMessage = contextData.userMessage || '';\nconst txt = userMessage.toLowerCase().trim();\n\nconst validation = {\n  is_valid: true,\n  issues: [],\n  intent: 'unknown',\n  confidence: 0,\n  should_process: true,\n  fallback_message: null\n};\n\nif (!txt || txt.length === 0) {\n  validation.is_valid = false;\n  validation.issues.push('empty_message');\n  validation.fallback_message = \"I didn't receive any message. Could you please send your query again?\";\n  validation.should_process = false;\n} else if (txt.length < 3 && !/^(hi|ok|no|yes|bye)$/.test(txt)) {\n  validation.is_valid = false;\n  validation.issues.push('too_short');\n  validation.fallback_message = \"Could you please provide more details so I can assist you better?\";\n  validation.should_process = false;\n} else if (txt.length > 5) {\n  const vowels = txt.match(/[aeiouAEIOU]/g) || [];\n  const vowelRatio = vowels.length / txt.length;\n  const repeatedChars = /(.)\\ 1{4,}/.test(txt);\n\n  if (vowelRatio < 0.15 || repeatedChars) {\n    validation.is_valid = false;\n    validation.issues.push('gibberish');\n    validation.fallback_message = \"I didn't quite understand that. Could you please rephrase your question about education or tutoring?\";\n    validation.should_process = false;\n  }\n} else if (/^(test|testing|test message|hello test|test123|check|checking)$/i.test(txt)) {\n  validation.is_valid = false;\n  validation.issues.push('test_message');\n  validation.fallback_message = \"Hello! How may I assist you with your educational needs today?\";\n  validation.should_process = false;\n} else if (txt.length > 1000) {\n  validation.issues.push('too_long');\n  validation.fallback_message = \"That's quite detailed! Could you summarize your main question?\";\n}\n\nif (validation.is_valid) {\n  const educationInquiry = /\\b(fee|fees|price|cost|charge|tuition|class|course|subject|schedule|timing|admission|enroll|join|teach|teacher|study|learn)\\b/i;\n  if (educationInquiry.test(txt)) {\n    validation.intent = 'education_inquiry';\n    validation.confidence = 80;\n  }\n\n  const careerGuidance = /\\b(jee|neet|iit|nit|aiims|engineering|medical|mbbs|college|career|exam|entrance|competitive|preparation|coaching)\\b/i;\n  if (careerGuidance.test(txt) && validation.confidence < 80) {\n    validation.intent = 'career_guidance';\n    validation.confidence = 85;\n  }\n\n  const supportRequest = /\\b(help|support|issue|problem|not working|cancel|change|reschedule|modify)\\b/i;\n  if (supportRequest.test(txt) && validation.confidence < 80) {\n    validation.intent = 'support_request';\n    validation.confidence = 75;\n  }\n\n  const complaint = /\\b(complain|complaint|unhappy|disappointed|bad|terrible|refund|money back|useless|worst|fraud|scam)\\b/i;\n  if (complaint.test(txt)) {\n    validation.intent = 'complaint';\n    validation.confidence = 90;\n    validation.requires_escalation = true;\n  }\n\n  const generalChat = /^(hi|hello|hey|good morning|good evening|good afternoon|namaste|how are you|what's up|sup)$/i;\n  if (generalChat.test(txt) || (txt.length < 15 && /\\b(hi|hello|hey)\\b/i.test(txt))) {\n    validation.intent = 'general_chat';\n    validation.confidence = 70;\n  }\n\n  const goodbye = /^(bye|goodbye|good bye|talk later|see you|thanks bye|thank you bye)$/i;\n  if (goodbye.test(txt)) {\n    validation.intent = 'goodbye';\n    validation.confidence = 95;\n  }\n\n  const outOfScope = /\\b(weather|movie|recipe|news|politics|religion|shopping|fashion|sports|cricket|football|covid|vaccine|medicine|prescription|stock|investment|dating|marriage)\\b/i;\n  if (outOfScope.test(txt)) {\n    validation.intent = 'out_of_scope';\n    validation.confidence = 85;\n    validation.issues.push('out_of_scope_topic');\n  }\n\n  if (validation.confidence < 50) {\n    validation.intent = 'unknown';\n    validation.confidence = 30;\n  }\n}\n\nconst history = contextData.history || '';\n\nif (history && history !== 'First conversation' && validation.is_valid) {\n  const historyLower = history.toLowerCase();\n\n  if (historyLower.includes('fee') && /\\b(weather|rain|temperature)\\b/i.test(txt)) {\n    validation.issues.push('incoherent_topic_switch');\n  }\n\n  const classPattern = /\\bclass\\s+(\\d+)/i;\n  const historyClass = history.match(classPattern);\n  const currentClass = userMessage.match(classPattern);\n\n  if (historyClass && currentClass && historyClass[1] !== currentClass[1]) {\n    validation.issues.push('contradictory_class_info');\n  }\n}\n\nconst spamIndicators = {\n  allCaps: txt === txt.toUpperCase() && txt.length > 10,\n  excessivePunctuation: (txt.match(/[!?]{3,}/g) || []).length > 2,\n  excessiveEmojis: (userMessage.match(/[\\u{1F300}-\\u{1F9FF}]/gu) || []).length > 10,\n  suspiciousLinks: /\\b(http|www\\.|bit\\.ly|tinyurl)\\b/i.test(txt)\n};\n\nconst spamCount = Object.values(spamIndicators).filter(v => v).length;\n\nif (spamCount >= 2) {\n  validation.issues.push('potential_spam');\n  validation.is_valid = false;\n  validation.fallback_message = \"I'm here to help with education-related queries. How may I assist you today?\";\n  validation.should_process = false;\n}\n\nreturn {\n  json: {\n    ...contextData,\n    validation_result: validation.is_valid ? 'valid' : 'invalid',\n    validation_issues: validation.issues,\n    detected_intent: validation.intent,\n    intent_confidence: validation.confidence,\n    should_process_with_ai: validation.should_process,\n    fallback_response: validation.fallback_message,\n    requires_escalation: validation.requires_escalation || contextData.escalation_needed || false\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13408,
+        2352
+      ],
+      "id": "2abf77da-86ec-489d-b0e4-aa434a09bd6f",
+      "name": "Validate_Message_And_Intent1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const leadDataRaw = $('get_or_create_lead_by_phone1').first().json;\nconst sessionDataRaw = $('Start_Or_Get_Session1').first().json;\nconst msgDataRaw = $('Get_recent_msgs1').first().json;\nconst memDataRaw = $('Get_AI_Memory1').first().json;\nconst trigData = $('ignore_check1').first().json;\n\nconst leadData = leadDataRaw?.get_or_create_lead_by_phone || leadDataRaw;\nconst sessionData = sessionDataRaw?.start_or_get_session || sessionDataRaw;\nconst msgData = msgDataRaw?.get_recent_messages || msgDataRaw;\nconst memData = memDataRaw?.get_ai_memory || memDataRaw;\n\nconst leadId = leadData?.id || null;\nconst storedLanguage = leadData?.language_pref || 'en';\nconst parentName = leadData?.parent_name || memData?.profile?.parent_name || 'Parent';\nconst studentName = leadData?.student_name || memData?.profile?.student_name || null;\nconst studentClass = leadData?.class || memData?.profile?.class || memData?.profile?.current_class || null;\nconst currentSentiment = leadData?.current_sentiment || 'neutral';\nconst sessionId = sessionData?.session_id || null;\nconst isNewSession = sessionData?.is_new_session || false;\n\nconst userMessage = trigData?.userMessage || '';\n\nif (!leadId) {\n  throw new Error('Failed to get lead_id from get_or_create_lead_by_phone');\n}\n\nlet messages = [];\n\nif (Array.isArray(msgData?.messages)) {\n  messages = msgData.messages;\n} else if (Array.isArray(msgData)) {\n  messages = msgData;\n} else if (msgData && typeof msgData === 'object') {\n  const possibleArrays = Object.values(msgData).filter(v => Array.isArray(v));\n  if (possibleArrays.length > 0) {\n    messages = possibleArrays[0];\n  }\n}\n\nconst validMessages = messages.filter(m => m && m.message && m.sender);\nconst historyLines = validMessages.slice(0, 10).reverse().map(m => {\n  const who = m.sender === 'user' ? (parentName || 'Parent') : 'Assistant';\n  return `${who}: ${m.message}`;\n});\n\nconst historyText = historyLines.length > 0 \n  ? historyLines.join('\\n') \n  : (isNewSession ? 'First conversation' : 'No recent history');\n\nconst profile = {\n  ...(memData?.profile || {}),\n  student_name: studentName || memData?.profile?.student_name,\n  class: studentClass || memData?.profile?.class,\n  parent_name: parentName !== 'Parent' ? parentName : memData?.profile?.parent_name\n};\nconst context = memData?.context || {};\nconst emotionalState = memData?.emotional_state || {};\n\nconst txt = userMessage.toLowerCase();\nlet detectedLanguage = storedLanguage;\n\nconst teluguScript = /[\\u0C00-\\u0C7F]/.test(userMessage);\nconst teluguWords = /\\b(enti|ela|nenu|naku|kavali|cheppandi|enduku|ekkada|eppudu|emi|emiti|evaru|cheppu|chepta|unnaru|untundi|ayina|kuda|bagundi|baagaa|manchidi|chala|twaraga)\\b/i.test(txt);\n\nconst hindiScript = /[\\u0900-\\u097F]/.test(userMessage);\nconst hindiWords = /\\b(kya|hai|ka|ke|ki|ko|mujhe|chahiye|kaise|kab|kahan|kyun|honge|hoga|hain|ho|aap|tum|main|hum|par|se|bhi|abhi|theek|accha)\\b/i.test(txt);\n\nif (teluguScript || teluguWords) {\n  detectedLanguage = 'te';\n} else if (hindiScript || hindiWords) {\n  detectedLanguage = 'hi';\n} else {\n  detectedLanguage = 'en';\n}\n\nlet detectedSentiment = 'neutral';\nlet sentimentConfidence = 0;\n\nconst stressedKeywords = /\\b(worried|tension|stress|problem|issue|confused|difficult|hard|cannot|can't|unable|help|please help)\\b/i;\nconst angryKeywords = /\\b(angry|annoyed|frustrated|disappointed|waste|useless|bad|terrible|worst|refund|money back|scam|fraud|cheat)\\b/i;\nconst anxiousKeywords = /\\b(anxious|nervous|afraid|scared|unsure|uncertain|doubt|concern|worried)\\b/i;\nconst happyKeywords = /\\b(happy|great|excellent|wonderful|amazing|good|nice|thank|thanks|grateful|appreciate)\\b/i;\nconst proudKeywords = /\\b(proud|achievement|success|secured|selected|admission|topped|rank|score)\\b/i;\n\nif (angryKeywords.test(txt)) {\n  detectedSentiment = 'angry';\n  sentimentConfidence = 75;\n} else if (stressedKeywords.test(txt)) {\n  detectedSentiment = 'stressed';\n  sentimentConfidence = 70;\n} else if (anxiousKeywords.test(txt)) {\n  detectedSentiment = 'anxious';\n  sentimentConfidence = 65;\n} else if (proudKeywords.test(txt)) {\n  detectedSentiment = 'proud';\n  sentimentConfidence = 70;\n} else if (happyKeywords.test(txt)) {\n  detectedSentiment = 'happy';\n  sentimentConfidence = 65;\n}\n\nlet detectedRole = 'unknown';\nconst parentIndicators = /\\b(my son|my daughter|my child|my kid|his|her|parent|father|mother|admission|fees for my)\\b/i;\nconst studentIndicators = /\\b(i am student|i study|my class|i want to|i need|my exam|my marks|my subjects|i'm in class)\\b/i;\n\nif (parentIndicators.test(txt)) {\n  detectedRole = 'parent';\n} else if (studentIndicators.test(txt)) {\n  detectedRole = 'student';\n}\n\nconst endPhrases = /\\b(bye|goodbye|good bye|talk later|gotta go|have to go)\\b/i;\nconst match = txt.match(endPhrases);\n\nlet shouldEndSession = false;\n\nif (match && match.index !== undefined) {\n  const goodbyeIndex = match.index;\n  const textAfterGoodbye = txt.substring(goodbyeIndex + match[0].length).trim();\n  \n  const hasQuestionAfter = textAfterGoodbye.includes('?');\n  const hasContinuation = /\\b(but|however|one|doubt|question|wait|actually|can you|could you)\\b/i.test(textAfterGoodbye);\n  \n  if (txt.length < 50 && \n      !hasQuestionAfter && \n      !hasContinuation && \n      textAfterGoodbye.length < 10) {\n    shouldEndSession = true;\n  }\n}\n\nlet escalationNeeded = false;\nlet escalationLevel = 'normal';\nlet escalationReason = [];\n\nconst criticalIndicators = {\n  abusive: /\\b(scam|fraud|cheat|liar|pathetic|worst ever|legal action|complain to authorities|police complaint)\\b/i,\n  refundDemand: /\\b(refund (now|immediately)|money back (now|immediately)|return my money)\\b/i,\n  threats: /\\b(sue you|legal notice|consumer court|report you)\\b/i\n};\n\nlet criticalCount = 0;\nif (criticalIndicators.abusive.test(txt)) criticalCount++;\nif (criticalIndicators.refundDemand.test(txt)) criticalCount++;\nif (criticalIndicators.threats.test(txt)) criticalCount++;\n\nif (criticalCount >= 2) {\n  escalationNeeded = true;\n  escalationLevel = 'critical';\n  escalationReason.push('Multiple critical complaint indicators detected');\n} else if (criticalIndicators.threats.test(txt)) {\n  escalationNeeded = true;\n  escalationLevel = 'critical';\n  escalationReason.push('Legal or regulatory threat detected');\n}\n\nif (!escalationNeeded) {\n  const highPriorityIssues = {\n    multipleComplaints: /\\b(told you (many times|multiple times|repeatedly)|asked (many times|repeatedly|so many times))\\b/i,\n    serviceFailure: /\\b(not working|doesn't work|never received|didn't get|promised but|said you would)\\b/i,\n    angerWithAbuse: detectedSentiment === 'angry' && /\\b(useless|waste|horrible|terrible|pathetic)\\b/i.test(txt)\n  };\n\n  if (highPriorityIssues.multipleComplaints.test(txt)) {\n    escalationNeeded = true;\n    escalationLevel = 'high';\n    escalationReason.push('Customer reports repeated unresolved concerns');\n  } else if (highPriorityIssues.angerWithAbuse && txt.length > 50) {\n    escalationNeeded = true;\n    escalationLevel = 'high';\n    escalationReason.push('Angry sentiment with specific service complaint');\n  }\n}\n\nif (!escalationNeeded) {\n  const mediumPriorityIssues = {\n    budgetWithEmotion: /\\b(can't afford|too expensive|budget (issue|problem|concern))\\b/i.test(txt) &&\n                       ['stressed', 'worried', 'anxious'].includes(detectedSentiment),\n    childDistress: /\\b(child (is )?(very )?(stressed|crying|depressed)|exam pressure (is )?(too much|unbearable))\\b/i.test(txt) &&\n                   detectedRole === 'parent'\n  };\n\n  if (mediumPriorityIssues.budgetWithEmotion) {\n    escalationNeeded = true;\n    escalationLevel = 'medium';\n    escalationReason.push('Budget concern from stressed parent');\n  } else if (mediumPriorityIssues.childDistress) {\n    escalationNeeded = true;\n    escalationLevel = 'medium';\n    escalationReason.push('Parent reporting significant child distress');\n  }\n}\n\nreturn {\n  json: {\n    lead_id: leadId,\n    lead_phone: trigData.phone,\n    language: detectedLanguage,\n    language_changed: detectedLanguage !== storedLanguage,\n    profile,\n    context,\n    emotional_state: emotionalState,\n    history: historyText,\n    userMessage,\n    timestamp: trigData.timestamp,\n    session_id: sessionId,\n    is_new_session: isNewSession,\n    detected_sentiment: detectedSentiment,\n    sentiment_confidence: sentimentConfidence,\n    current_sentiment: currentSentiment,\n    detected_role: detectedRole,\n    should_end_session: shouldEndSession,\n    parent_name: parentName,\n    escalation_needed: escalationNeeded,\n    escalation_level: escalationLevel,\n    escalation_reason: escalationReason.join('; ') || 'No escalation needed'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13616,
+        2352
+      ],
+      "id": "b2291c94-fb84-49d7-bb34-59e7213948b0",
+      "name": "Build_AI_Context1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_ai_memory",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id_input\": \"{{ $('get_or_create_lead_by_phone1').first().json.get_or_create_lead_by_phone?.id || $('get_or_create_lead_by_phone1').first().json.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -13824,
+        2336
+      ],
+      "id": "ef1409fb-24bd-489a-b9e5-9fbbd3e9efd6",
+      "name": "Get_AI_Memory1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_recent_messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id_input\": \"{{ $('get_or_create_lead_by_phone1').first().json.get_or_create_lead_by_phone?.id || $('get_or_create_lead_by_phone1').first().json.id }}\",\n  \"limit_count\": 10\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -14032,
+        2336
+      ],
+      "id": "a65ac7e7-c4b3-411b-85c8-c8743bb23c4e",
+      "name": "Get_recent_msgs1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/start_or_get_session",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id_input\": \"{{ $json.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -14240,
+        2336
+      ],
+      "id": "699b8e5b-32ec-4e9b-b3d6-abc72967bae8",
+      "name": "Start_Or_Get_Session1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_or_create_lead_by_phone",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"phone_input\": \"{{ $json['phone'].replace(/^91/, '') }}\",\n  \"org_id_input\": null,\n  \"ref_source_input\": \"whatsapp\",\n  \"utm_campaign_input\": null,\n  \"utm_source_input\": null,\n  \"utm_medium_input\": null,\n  \"source_metadata_input\": {}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -14448,
+        2336
+      ],
+      "id": "86c00487-24ed-410f-ab28-dd8712657734",
+      "name": "get_or_create_lead_by_phone1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\ntry {\n  let msg;\n  if (payload?.messages?.length) {\n    msg = payload.messages[0];\n  } else if (payload?.entry?.[0]?.changes?.[0]?.value?.messages?.length) {\n    msg = payload.entry[0].changes[0].value.messages[0];\n  } else if (payload?.value?.messages?.length) {\n    msg = payload.value.messages[0];\n  }\n\n  if (!msg) {\n    return { json: { ignore: true, reason: \"no_message_found\" } };\n  }\n\n  let rawPhone = $json.contacts?.[0]?.wa_id || '';\n  if (!rawPhone) {\n    return { json: { ignore: true, reason: \"no_phone_found\" } };\n  }\n\n  let normalizedPhone = rawPhone.replace(/\\D/g, '');\n  \n  if (normalizedPhone.length === 10) {\n    normalizedPhone = '91' + normalizedPhone;\n  } else if (normalizedPhone.length > 12) {\n    normalizedPhone = normalizedPhone.slice(-12);\n  }\n  \n  if (normalizedPhone.length !== 12) {\n    console.warn('Unusual phone format:', rawPhone, '→', normalizedPhone);\n  }\n\n  let iso;\n  if (!msg.timestamp) iso = new Date().toISOString();\n  else if (/^\\d+$/.test(msg.timestamp)) {\n    iso = new Date(parseInt(msg.timestamp, 10) * 1000).toISOString();\n  } else {\n    iso = new Date(msg.timestamp).toISOString();\n  }\n\n  let text = \"\";\n  const messageType = msg.type || \"text\";\n  if (messageType === \"text\") {\n    text = msg.text?.body || \"\";\n  } else if ([\"image\", \"audio\", \"document\", \"video\"].includes(messageType)) {\n    text = `[User sent ${messageType}]`;\n  } else {\n    return { json: { ignore: true, reason: \"unsupported_message_type\" } };\n  }\n\n  // Initialize global data structures\n  const globalData = $getWorkflowStaticData(\"global\");\n  if (!globalData.lead_dedupe) {\n    globalData.lead_dedupe = {};\n  }\n  if (!globalData.rate_limits) {\n    globalData.rate_limits = {};\n  }\n\n  const phone = normalizedPhone;\n  const now = Date.now();\n  \n  // RATE LIMITING: Prevent spam/abuse\n  const windowMs = 60000; // 1 minute window\n  const maxMessages = 10; // Max 10 messages per minute\n  \n  if (!globalData.rate_limits[phone]) {\n    globalData.rate_limits[phone] = [];\n  }\n  \n  // Clean old timestamps outside the window\n  globalData.rate_limits[phone] = globalData.rate_limits[phone]\n    .filter(timestamp => now - timestamp < windowMs);\n  \n  // Check if rate limit exceeded\n  if (globalData.rate_limits[phone].length >= maxMessages) {\n    console.warn(`⚠️ Rate limit exceeded for ${phone}: ${globalData.rate_limits[phone].length} messages in last minute`);\n    return {\n      json: {\n        ignore: true,\n        reason: \"rate_limit_exceeded\",\n        phone: phone,\n        should_notify: true,\n        notification_message: \"You're sending messages too quickly. Please wait a moment before sending more messages.\"\n      }\n    };\n  }\n  \n  // Add current timestamp to rate limit tracker\n  globalData.rate_limits[phone].push(now);\n  \n  // Cleanup old rate limit entries (keep last 200 phones)\n  const rateLimitKeys = Object.keys(globalData.rate_limits);\n  if (rateLimitKeys.length > 200) {\n    const sortedByRecency = rateLimitKeys.sort((a, b) => {\n      const aLatest = Math.max(...(globalData.rate_limits[a] || [0]));\n      const bLatest = Math.max(...(globalData.rate_limits[b] || [0]));\n      return bLatest - aLatest;\n    });\n    const keysToDelete = sortedByRecency.slice(200);\n    keysToDelete.forEach(key => delete globalData.rate_limits[key]);\n  }\n\n  // DUPLICATE DETECTION\n  const leadKey = normalizedPhone;\n  const leadDedupe = globalData.lead_dedupe[leadKey] || {};\n  const lastText = leadDedupe.last_text || null;\n  const lastTime = leadDedupe.last_time || 0;\n  const nowTs = Date.now();\n\n  if (lastText === text && nowTs - lastTime < 8000) {\n    return { json: { ignore: true, reason: \"duplicate\" } };\n  }\n\n  globalData.lead_dedupe[leadKey] = {\n    last_text: text,\n    last_time: nowTs,\n    message_count: (leadDedupe.message_count || 0) + 1\n  };\n\n  // Cleanup old dedupe entries\n  const leadKeys = Object.keys(globalData.lead_dedupe);\n  if (leadKeys.length > 100) {\n    const sortedKeys = leadKeys.sort((a, b) => {\n      return globalData.lead_dedupe[b].last_time - globalData.lead_dedupe[a].last_time;\n    });\n    const keysToDelete = sortedKeys.slice(100);\n    keysToDelete.forEach(key => delete globalData.lead_dedupe[key]);\n  }\n\n  return {\n    json: {\n      ignore: false,\n      phone: normalizedPhone,\n      userMessage: text,\n      messageType,\n      timestamp: iso,\n      messageCount: globalData.lead_dedupe[leadKey].message_count,\n      rate_limit_remaining: maxMessages - globalData.rate_limits[phone].length\n    },\n  };\n} catch (error) {\n  console.error('Error in ignore_check:', error);\n  return {\n    json: { ignore: true, error: error.message || String(error) },\n  };\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14832,
+        2320
+      ],
+      "id": "1fe416be-f820-4e50-bed9-2199ffff405a",
+      "name": "ignore_check1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "29d84a71-1d63-4690-ad50-896d0a3ab567",
+              "leftValue": "={{$json[\"ignore\"]}}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -14672,
+        2320
+      ],
+      "id": "b2be63cc-102c-4142-bef4-9045310f2bbc",
+      "name": "If2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -14992,
+        2320
+      ],
+      "id": "5ce2563a-ac36-4d8f-ba4e-e0aff08e2b70",
+      "name": "WhatsApp Trigger1",
+      "webhookId": "f017a3db-c5ff-4d2d-b53c-372175fd3bb6",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "5f2daEPjDnimXFsJ",
+          "name": "WhatsApp OAuth account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -15056,
+        3088
+      ],
+      "id": "45c81fd6-b200-42c0-8645-4ba18a47dd78",
+      "name": "Every Hour"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_payments_needing_followup",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -14848,
+        2992
+      ],
+      "id": "2df00fc0-d13b-477c-8e4f-d2c926a9ca83",
+      "name": "Get Pending Payments",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_inactive_sessions_needing_followup",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -14848,
+        3184
+      ],
+      "id": "f37925ad-8fa5-4c66-ac4d-08633563c8d3",
+      "name": "Get Inactive Sessions",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-payments-check",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -14656,
+        2992
+      ],
+      "id": "6f04e710-3c70-431d-b985-c79145ec3bca",
+      "name": "Has Pending Payments?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-sessions-check",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -14656,
+        3184
+      ],
+      "id": "66ddcabf-f3bf-4616-b52a-d2e223d4069b",
+      "name": "Has Inactive Sessions?"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -14448,
+        2880
+      ],
+      "id": "9459a535-4f64-4ea6-870e-fb2adcc4a7b1",
+      "name": "Split Payments"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -14448,
+        3280
+      ],
+      "id": "b8109859-e6f5-4084-9422-4665a57f64a8",
+      "name": "Split Sessions"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payment = $input.first().json;\n\nconst parentName = payment.parent_name || 'Parent';\nconst assessmentType = payment.assessment_type;\nconst paymentLink = payment.payment_link;\nconst followUpType = payment.follow_up_type;\n\n// Format assessment name\nlet formattedName = assessmentType;\nif (assessmentType === 'iLMH') formattedName = 'iLMH Assessment';\nelse if (assessmentType === 'test_anxiety') formattedName = 'Test Anxiety Assessment';\nelse if (assessmentType === 'iTMPA') formattedName = 'iTMPA Assessment';\nelse if (assessmentType === 'iPMA') formattedName = 'iPMA Assessment';\n\n// Different messages for first and second follow-up\nlet message;\n\nif (followUpType === 'first_followup') {\n  message = `Hi ${parentName}! 👋\\n\\nI noticed you haven't completed the payment for the ${formattedName}. The link is still active.\\n\\n${paymentLink}\\n\\nNeed any help? Feel free to ask!\\n\\n- Subbu Innovative Classes`;\n} else {\n  // second_followup\n  message = `Hi ${parentName},\\n\\nJust a gentle reminder about the ${formattedName} payment. The link will expire soon.\\n\\n${paymentLink}\\n\\nIf you have any questions or concerns, I'm here to help!\\n\\n- Subbu Innovative Classes`;\n}\n\nreturn {\n  json: {\n    phone: payment.lead_phone,\n    message: message,\n    payment_id: payment.payment_id,\n    lead_id: payment.lead_id,\n    follow_up_type: followUpType\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14256,
+        2880
+      ],
+      "id": "6defb687-7c8b-44bb-9ab4-4ba9bf429b82",
+      "name": "Format Payment Follow-up"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -14048,
+        2880
+      ],
+      "id": "e210cb5d-79da-4912-b797-c7750594954a",
+      "name": "Send Payment Follow-up",
+      "webhookId": "send-payment-followup-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/mark_payment_followup_sent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_payment_id\": \"{{ $json.payment_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -13856,
+        2880
+      ],
+      "id": "2ecddf20-51bc-421f-8206-1801444b534e",
+      "name": "Mark Payment Follow-up Sent",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\n\nconst parentName = session.parent_name || 'Parent';\nconst phone = session.lead_phone;\n\nconst message = `Hi ${parentName}! 👋\\n\\nJust checking in - did you have any other questions about your child's education or our services?\\n\\nI'm here to help!\\n\\n- Subbu Innovative Classes`;\n\nreturn {\n  json: {\n    phone: phone,\n    message: message,\n    session_id: session.session_id,\n    lead_id: session.lead_id\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14256,
+        3280
+      ],
+      "id": "95efa6d8-3692-414c-aeaf-911c8fc15bc9",
+      "name": "Format Session Follow-up"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -14048,
+        3280
+      ],
+      "id": "a5e991cc-645c-43a7-a47a-bd444562a6c6",
+      "name": "Send Session Follow-up",
+      "webhookId": "send-session-followup-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/mark_session_followup_sent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_session_id\": \"{{ $json.session_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -13856,
+        3280
+      ],
+      "id": "9fd4bcc6-dddc-4327-ab7a-2366f25c249c",
+      "name": "Mark Session Follow-up Sent",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -13648,
+        2880
+      ],
+      "id": "4b8ceed3-618c-4519-9057-0aab85d8207e",
+      "name": "Wait (Rate Limit)",
+      "webhookId": "5a7e9941-b4a3-4199-a8ba-08c5b26c3487"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -13648,
+        3280
+      ],
+      "id": "20e1fe71-003e-40a3-9b8b-1cf7e7faa19b",
+      "name": "Wait (Rate Limit) 2",
+      "webhookId": "da658e97-5c0b-4818-9194-a84f428cae60"
+    },
+    {
+      "parameters": {
+        "path": "razorpay-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -12960,
+        3328
+      ],
+      "id": "c4ba57e8-b1e5-4121-a439-0f410a8db1da",
+      "name": "Razorpay Webhook",
+      "webhookId": "razorpay-payment-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Extract Razorpay webhook payload\nconst body = $input.first().json.body;\nconst headers = $input.first().json.headers || {};\nconst receivedSignature = headers['x-razorpay-signature'];\n\nconsole.log('Razorpay Webhook Received:', JSON.stringify(body, null, 2));\n\n// SECURITY: Verify webhook signature\nconst webhookSecret = 'SubbuInnovative2025';\n\nif (webhookSecret && receivedSignature) {\n  try {\n    const expectedSignature = crypto\n      .createHmac('sha256', webhookSecret)\n      .update(JSON.stringify(body))\n      .digest('hex');\n\n    if (receivedSignature !== expectedSignature) {\n      console.error('⚠️ SECURITY ALERT: Invalid webhook signature detected!');\n      throw new Error('Invalid webhook signature - possible fraud attempt');\n    }\n    console.log('✅ Webhook signature verified');\n  } catch (error) {\n    console.error('Signature verification failed:', error.message);\n    throw error;\n  }\n} else {\n  console.warn('⚠️ WARNING: Webhook signature verification skipped (no secret configured)');\n}\n\n// Validate webhook event type\nconst event = body.event;\nif (!event) {\n  throw new Error('Invalid webhook: missing event field');\n}\n\n// Extract payment data based on event type\nlet razorpayOrderId, razorpayPaymentId, status;\n\nif (event === 'payment.captured' || event === 'order.paid') {\n  const payment = body.payload?.payment || body.payload?.order;\n  \n  if (!payment) {\n    throw new Error('Invalid webhook: missing payment data');\n  }\n\n  razorpayOrderId = payment.order_id;\n  razorpayPaymentId = payment.id;\n  status = 'paid';\n  \n} else if (event === 'payment.failed') {\n  const payment = body.payload?.payment;\n  \n  if (!payment) {\n    throw new Error('Invalid webhook: missing payment data');\n  }\n\n  razorpayOrderId = payment.order_id;\n  razorpayPaymentId = payment.id;\n  status = 'failed';\n  \n} else {\n  // Unsupported event type - acknowledge but don't process\n  return {\n    json: {\n      success: true,\n      message: 'Event acknowledged but not processed: ' + event,\n      should_process: false\n    }\n  };\n}\n\nif (!razorpayOrderId) {\n  throw new Error('Invalid webhook: missing order_id');\n}\n\nconsole.log('Processed Webhook Data:', {\n  event,\n  razorpayOrderId,\n  razorpayPaymentId,\n  status\n});\n\nreturn {\n  json: {\n    razorpay_order_id: razorpayOrderId,\n    razorpay_payment_id: razorpayPaymentId,\n    status: status,\n    event: event,\n    should_process: true,\n    raw_payload: body\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12752,
+        3328
+      ],
+      "id": "b9b2a7b1-8d89-44e1-97d7-18c766e76e09",
+      "name": "Parse Webhook Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "should-process-check",
+              "leftValue": "={{ $json.should_process }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -12560,
+        3328
+      ],
+      "id": "b49e9073-2e06-4386-b970-b76775412664",
+      "name": "Should Process?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/update_payment_status_from_webhook",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_razorpay_order_id\": \"{{ $json.razorpay_order_id }}\",\n  \"p_razorpay_payment_id\": \"{{ $json.razorpay_payment_id }}\",\n  \"p_status\": \"{{ $json.status }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -12352,
+        3232
+      ],
+      "id": "2d15ef15-494e-4478-8062-9f6889b7c974",
+      "name": "Update Payment Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "payment-success-check",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "paid",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -12160,
+        3232
+      ],
+      "id": "4e2de9f0-b0ff-44fc-9695-48ee839df940",
+      "name": "Payment Success?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract payment and assessment details from database response\nconst dbResponse = $input.first().json;\n\nconsole.log('DB Response:', JSON.stringify(dbResponse, null, 2));\n\n// Handle response format (may be array or object)\nlet paymentData;\nif (Array.isArray(dbResponse)) {\n  paymentData = dbResponse[0];\n} else {\n  paymentData = dbResponse;\n}\n\nif (!paymentData) {\n  throw new Error('No payment data returned from database');\n}\n\nconst assessmentType = paymentData.assessment_type;\nconst assessmentLink = paymentData.assessment_link;\nconst parentName = paymentData.parent_name || 'Parent';\nconst phone = paymentData.phone;\nconst displayName = paymentData.assessment_type;\n\n// Format display name\nlet formattedName = displayName;\nif (assessmentType === 'iLMH') formattedName = 'iLMH Assessment';\nelse if (assessmentType === 'test_anxiety') formattedName = 'Test Anxiety Assessment';\nelse if (assessmentType === 'iTMPA') formattedName = 'iTMPA Assessment';\nelse if (assessmentType === 'iPMA') formattedName = 'iPMA Assessment';\n\n// Create WhatsApp message\nconst message = `Payment received! 🎉\\n\\nThank you for your payment, ${parentName}!\\n\\nHere's your ${formattedName} link:\\n${assessmentLink}\\n\\nPlease complete the assessment at your convenience. If you have any questions, feel free to ask!\\n\\n- Subbu Innovative Classes`;\n\nreturn {\n  json: {\n    phone: phone,\n    message: message,\n    parent_name: parentName,\n    assessment_type: assessmentType,\n    assessment_link: assessmentLink\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11952,
+        3120
+      ],
+      "id": "e9052579-666b-4169-8c44-a5264d0593a2",
+      "name": "Format Success Message"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -11760,
+        3120
+      ],
+      "id": "ed0d11b5-1154-4c6b-84b6-fe782e38f97d",
+      "name": "Send Assessment Link",
+      "webhookId": "send-assessment-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log payment failure\nconst dbResponse = $input.first().json;\n\nlet paymentData;\nif (Array.isArray(dbResponse)) {\n  paymentData = dbResponse[0];\n} else {\n  paymentData = dbResponse;\n}\n\nconst parentName = paymentData?.parent_name || 'Parent';\nconst phone = paymentData?.phone;\n\nconst message = `We noticed that the payment didn't go through. No worries!\\n\\nIf you'd like to try again, please let me know and I'll send you a fresh payment link.\\n\\nFeel free to reach out if you need any assistance!\\n\\n- Subbu Innovative Classes`;\n\nreturn {\n  json: {\n    phone: phone,\n    message: message,\n    parent_name: parentName,\n    should_notify: phone ? true : false\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11952,
+        3328
+      ],
+      "id": "e72bb1bb-a3bf-46b2-8e31-1f2fb7c2ca0a",
+      "name": "Format Failure Message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "should-notify-check",
+              "leftValue": "={{ $json.should_notify }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -11760,
+        3328
+      ],
+      "id": "57bc1427-34fa-4c37-9e6c-971eaa970b0d",
+      "name": "Should Notify?"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -11552,
+        3232
+      ],
+      "id": "6416b5fb-4baf-40d1-ad1b-7b22d5d2fddd",
+      "name": "Send Failure Notification",
+      "webhookId": "send-failure-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\"success\": true, \"message\": \"Webhook processed successfully\"} }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -11360,
+        3360
+      ],
+      "id": "95296a06-b783-4159-8598-cff01db167f2",
+      "name": "Respond Success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\"success\": true, \"message\": \"Webhook acknowledged\"} }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -12352,
+        3424
+      ],
+      "id": "af650f79-dfbc-40f9-941e-977ed261ede7",
+      "name": "Respond Acknowledgment"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log error for debugging\nconst error = $input.first().json;\n\nconsole.error('Webhook Processing Error:', error);\n\n// Notify admin about error\nconst errorMessage = error.message || 'Unknown error';\n\nreturn {\n  json: {\n    error: true,\n    message: errorMessage,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12160,
+        3520
+      ],
+      "id": "49889326-3689-479a-901e-05ccf27ea332",
+      "name": "Handle Error",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\"success\": false, \"error\": $json.message} }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -11952,
+        3520
+      ],
+      "id": "310b8d7d-c625-4e5f-a470-a0d9c53fc2a0",
+      "name": "Respond Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $json.ai_response || '';\n\n// Check if AI is requesting payment link generation\nconst paymentMatch = aiResponse.match(/GENERATE_PAYMENT_LINK:(\\w+)/i);\n\nif (paymentMatch) {\n  const assessmentType = paymentMatch[1].toLowerCase();\n  \n  return {\n    json: {\n      ...$json,\n      needs_payment_link: true,\n      assessment_type: assessmentType,\n      assessment_display_name: assessmentType === 'ilmh' ? 'iLMH Assessment' :\n                                assessmentType === 'test_anxiety' ? 'Test Anxiety Assessment' :\n                                assessmentType === 'itmpa' ? 'iTMPA Assessment' :\n                                assessmentType === 'ipma' ? 'iPMA Assessment' : assessmentType\n    }\n  };\n} else {\n  return {\n    json: {\n      ...$json,\n      needs_payment_link: false\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11120,
+        2368
+      ],
+      "id": "a5c0973b-8f26-48a8-a68a-a23cab58c7d5",
+      "name": "Detect Payment Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "06c56857-6850-4721-9215-35b04533f5e5",
+              "leftValue": "={{ $json.needs_payment_link }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -10912,
+        2368
+      ],
+      "id": "f651664d-2103-43a1-91e6-09149c110f47",
+      "name": "IF Needs Payment?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/check_existing_pending_payment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_lead_id\": \"{{ $json.lead_id }}\",\n  \"p_assessment_type\": \"{{ $json.assessment_type }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -11024,
+        2112
+      ],
+      "id": "942e3fc2-0475-45f4-a83e-b3df15460188",
+      "name": "Check Existing Payment",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b71a541-de95-45bd-8550-f39ce40a395b",
+              "leftValue": "={{ $json.has_existing }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -10800,
+        2112
+      ],
+      "id": "869e9ab0-3ec4-4a1e-9dd4-001ea5801f18",
+      "name": "IF Has Existing Payment?"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $('Detect Payment Request').first().json.lead_phone }}",
+        "textBody": "=Here's your payment link for the {{ $('Detect Payment Request').first().json.assessment_display_name }}:\n\n{{ $json.payment_link }}\n\nThe link is still active. Once payment is complete, you'll automatically receive the assessment link!\n\n- Subbu Innovative Classes",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -10784,
+        1920
+      ],
+      "id": "056a8c1d-4a6a-4358-a15e-2b2a53f7153e",
+      "name": "Send_Existing_Payment_Link",
+      "webhookId": "send-existing-payment-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.razorpay.com/v1/payment_links",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "razorpayApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Basic {{ $binary.Buffer.from('rzp_live_kG9ZasqjGwDq7y:SubbuInnovative2025').toString('base64') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"amount\": 9900,\n  \"currency\": \"INR\",\n  \"description\": \"{{ $('Detect Payment Request').first().json.assessment_display_name }}\",\n  \"customer\": {\n    \"name\": \"{{ $('Detect Payment Request').first().json.parent_name }}\",\n    \"contact\": \"+{{ $('Detect Payment Request').first().json.lead_phone }}\"\n  },\n  \"notify\": {\n    \"sms\": false,\n    \"email\": false\n  },\n  \"reminder_enable\": false,\n  \"notes\": {\n    \"lead_id\": \"{{ $('Detect Payment Request').first().json.lead_id }}\",\n    \"assessment_type\": \"{{ $('Detect Payment Request').first().json.assessment_type }}\",\n    \"parent_name\": \"{{ $('Detect Payment Request').first().json.parent_name }}\"\n  },\n  \"callback_url\": \"https://n8n.srv1053381.hstgr.cloud/webhook/razorpay-webhook\",\n  \"callback_method\": \"get\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -10512,
+        1984
+      ],
+      "id": "f55d7dc9-57e7-4410-af6b-0cf009b2908f",
+      "name": "Generate_Razorpay_Link",
+      "credentials": {
+        "razorpayApi": {
+          "id": "klYKYRfzoS4icgYU",
+          "name": "Razorpay account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const razorpayResponse = $input.first().json;\nconst detectData = $('Detect Payment Request').first().json;\n\n// Check if Razorpay call failed\nif (razorpayResponse.error || !razorpayResponse.id) {\n  console.error('Payment generation failed:', razorpayResponse);\n  \n  return {\n    json: {\n      success: false,\n      lead_phone: detectData.lead_phone,\n      lead_id: detectData.lead_id,\n      parent_name: detectData.parent_name,\n      error_message: \"I'm sorry, I couldn't generate the payment link right now. Please try again in a few minutes or contact our support team.\",\n      should_notify_admin: true,\n      error_details: razorpayResponse.error || 'No payment ID returned'\n    }\n  };\n} else {\n  // Success - pass through to Save_Payment_Record\n  return {\n    json: {\n      success: true,\n      ...razorpayResponse,\n      lead_phone: detectData.lead_phone,\n      lead_id: detectData.lead_id\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10304,
+        2160
+      ],
+      "id": "5f2fe863-d31c-456a-b05f-7e69d6ac4fe3",
+      "name": "Handle_Payment_Generation_Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "payment-success-check",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -10064,
+        2112
+      ],
+      "id": "33c541dc-c190-43d3-9392-93b2a39c6aef",
+      "name": "IF Payment Generation Success?"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.lead_phone }}",
+        "textBody": "={{ $json.error_message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -9712,
+        2512
+      ],
+      "id": "db5bde8f-a09d-4250-baa1-5876ac744d32",
+      "name": "Send_Payment_Error_Message",
+      "webhookId": "send-payment-error-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/notify_admin",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"alert_type\": \"urgent\",\n  \"lead_id_input\": \"{{ $json.lead_id }}\",\n  \"message_text\": \"Payment link generation failed for {{ $json.parent_name }}. Error: {{ $json.error_details }}\",\n  \"metadata_json\": {\n    \"error\": \"{{ $json.error_details }}\",\n    \"phone\": \"{{ $json.lead_phone }}\",\n    \"timestamp\": \"{{ $now }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -9424,
+        2736
+      ],
+      "id": "56bd4f85-76d8-488e-9af2-4d2b990ffd17",
+      "name": "Notify_Admin_Payment_Error",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/create_payment_record",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_lead_id\": \"{{ $('Detect Payment Request').first().json.lead_id }}\",\n  \"p_assessment_type\": \"{{ $('Detect Payment Request').first().json.assessment_type }}\",\n  \"p_amount\": 9900,\n  \"p_razorpay_order_id\": \"{{ $json.id }}\",\n  \"p_payment_link\": \"{{ $json.short_url }}\",\n  \"p_status\": \"pending\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -10272,
+        1968
+      ],
+      "id": "c8126bc4-674c-4d53-87ba-c8b52351c5c8",
+      "name": "Save_Payment_Record",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $('Detect Payment Request').first().json.lead_phone }}",
+        "textBody": "=Great! Here's your payment link for the {{ $('Detect Payment Request').first().json.assessment_display_name }}:\n\n{{ $('Generate_Razorpay_Link').first().json.short_url }}\n\nThe link is valid for 48 hours. Once payment is complete, you'll automatically receive the assessment link.\n\nFeel free to ask if you need any help!\n\n- Subbu Innovative Classes",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -9760,
+        1968
+      ],
+      "id": "e712831a-1132-42c6-bc91-bc76b8084e0f",
+      "name": "Send_New_Payment_Link",
+      "webhookId": "send-new-payment-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Log_AI_Operation1": {
+      "main": [
+        [
+          {
+            "node": "Batch_Save_Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store_Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Update_Engagement_Score1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Message Long Enough?": {
+      "main": [
+        [
+          {
+            "node": "Generate_Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update_Engagement_Score1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate_Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Store_Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save_Smart_Analysis1": {
+      "main": [
+        [
+          {
+            "node": "Send message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call_Analyze_Conversation1": {
+      "main": [
+        [
+          {
+            "node": "Save_Smart_Analysis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep_Smart_Analysis_Data1": {
+      "main": [
+        [
+          {
+            "node": "Call_Analyze_Conversation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_LongTerm_Profile1": {
+      "main": [
+        [
+          {
+            "node": "IF_Should_End_Session1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Update_LongTerm_Profile1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF_Should_End_Session1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Profile_Info1": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End_Session1": {
+      "main": [
+        [
+          {
+            "node": "Prep_Smart_Analysis_Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Should_End_Session1": {
+      "main": [
+        [
+          {
+            "node": "End_Session1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Engagement_Score1": {
+      "main": [
+        [
+          {
+            "node": "Extract_Profile_Info1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify_Messages_Saved1": {
+      "main": [
+        [
+          {
+            "node": "IF Message Long Enough?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch_Save_Messages": {
+      "main": [
+        [
+          {
+            "node": "Verify_Messages_Saved1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_AI_Response1": {
+      "main": [
+        [
+          {
+            "node": "Detect Payment Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch_Assessment_Info": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Extract_AI_Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify_Admin_Escalation1": {
+      "main": [
+        [
+          {
+            "node": "Fetch_Assessment_Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Needs_Admin_Attention": {
+      "main": [
+        [
+          {
+            "node": "Notify_Admin_Escalation1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch_Assessment_Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Sentiment1": {
+      "main": [
+        [
+          {
+            "node": "IF_Needs_Admin_Attention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Sentiment_Detected1": {
+      "main": [
+        [
+          {
+            "node": "Update_Sentiment1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF_Needs_Admin_Attention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Language_Preference1": {
+      "main": [
+        [
+          {
+            "node": "IF_Sentiment_Detected1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Language_Changed1": {
+      "main": [
+        [
+          {
+            "node": "Update_Language_Preference1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF_Sentiment_Detected1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Message_Valid1": {
+      "main": [
+        [
+          {
+            "node": "IF_Language_Changed1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send_Fallback_Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate_Message_And_Intent1": {
+      "main": [
+        [
+          {
+            "node": "IF_Message_Valid1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build_AI_Context1": {
+      "main": [
+        [
+          {
+            "node": "Validate_Message_And_Intent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_AI_Memory1": {
+      "main": [
+        [
+          {
+            "node": "Build_AI_Context1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_recent_msgs1": {
+      "main": [
+        [
+          {
+            "node": "Get_AI_Memory1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start_Or_Get_Session1": {
+      "main": [
+        [
+          {
+            "node": "Get_recent_msgs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_or_create_lead_by_phone1": {
+      "main": [
+        [
+          {
+            "node": "Start_Or_Get_Session1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ignore_check1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "get_or_create_lead_by_phone1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger1": {
+      "main": [
+        [
+          {
+            "node": "ignore_check1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Payments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Inactive Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Payments": {
+      "main": [
+        [
+          {
+            "node": "Has Pending Payments?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inactive Sessions": {
+      "main": [
+        [
+          {
+            "node": "Has Inactive Sessions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Pending Payments?": {
+      "main": [
+        [
+          {
+            "node": "Split Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Inactive Sessions?": {
+      "main": [
+        [
+          {
+            "node": "Split Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Payments": {
+      "main": [
+        [
+          {
+            "node": "Format Payment Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Sessions": {
+      "main": [
+        [
+          {
+            "node": "Format Session Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Payment Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Send Payment Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Payment Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Mark Payment Follow-up Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Payment Follow-up Sent": {
+      "main": [
+        [
+          {
+            "node": "Wait (Rate Limit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Session Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Send Session Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Session Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Mark Session Follow-up Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Session Follow-up Sent": {
+      "main": [
+        [
+          {
+            "node": "Wait (Rate Limit) 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (Rate Limit)": {
+      "main": [
+        [
+          {
+            "node": "Split Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (Rate Limit) 2": {
+      "main": [
+        [
+          {
+            "node": "Split Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Razorpay Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Webhook Data": {
+      "main": [
+        [
+          {
+            "node": "Should Process?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Process?": {
+      "main": [
+        [
+          {
+            "node": "Update Payment Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Acknowledgment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Payment Status": {
+      "main": [
+        [
+          {
+            "node": "Payment Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payment Success?": {
+      "main": [
+        [
+          {
+            "node": "Format Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Failure Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success Message": {
+      "main": [
+        [
+          {
+            "node": "Send Assessment Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Assessment Link": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Failure Message": {
+      "main": [
+        [
+          {
+            "node": "Should Notify?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify?": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Failure Notification": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Payment Request": {
+      "main": [
+        [
+          {
+            "node": "IF Needs Payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Needs Payment?": {
+      "main": [
+        [
+          {
+            "node": "Check Existing Payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log_AI_Operation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Payment": {
+      "main": [
+        [
+          {
+            "node": "IF Has Existing Payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Existing Payment?": {
+      "main": [
+        [
+          {
+            "node": "Send_Existing_Payment_Link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate_Razorpay_Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send_Existing_Payment_Link": {
+      "main": [
+        [
+          {
+            "node": "Log_AI_Operation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate_Razorpay_Link": {
+      "main": [
+        [
+          {
+            "node": "Handle_Payment_Generation_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle_Payment_Generation_Error": {
+      "main": [
+        [
+          {
+            "node": "IF Payment Generation Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Payment Generation Success?": {
+      "main": [
+        [
+          {
+            "node": "Save_Payment_Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send_Payment_Error_Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send_Payment_Error_Message": {
+      "main": [
+        [
+          {
+            "node": "Notify_Admin_Payment_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify_Admin_Payment_Error": {
+      "main": [
+        [
+          {
+            "node": "Log_AI_Operation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save_Payment_Record": {
+      "main": [
+        [
+          {
+            "node": "Send_New_Payment_Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send_New_Payment_Link": {
+      "main": [
+        [
+          {
+            "node": "Log_AI_Operation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5e23089ece228601c5363dc3a7fae44f4c726c20a3f50e3af4bdc5ce10aa545c"
+  }
+}

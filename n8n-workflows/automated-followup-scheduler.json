@@ -1,0 +1,333 @@
+{
+  "name": "Automated Follow-up Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 0,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300],
+      "id": "schedule-trigger",
+      "name": "Every Hour"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_payments_needing_followup",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 200],
+      "id": "get-pending-payments",
+      "name": "Get Pending Payments",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/get_inactive_sessions_needing_followup",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 400],
+      "id": "get-inactive-sessions",
+      "name": "Get Inactive Sessions",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-payments-check",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [600, 200],
+      "id": "if-has-payments",
+      "name": "Has Pending Payments?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-sessions-check",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [600, 400],
+      "id": "if-has-sessions",
+      "name": "Has Inactive Sessions?"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [800, 100],
+      "id": "split-payments",
+      "name": "Split Payments"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [800, 500],
+      "id": "split-sessions",
+      "name": "Split Sessions"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payment = $input.first().json;\n\nconst parentName = payment.parent_name || 'Parent';\nconst assessmentType = payment.assessment_type;\nconst paymentLink = payment.payment_link;\nconst followUpType = payment.follow_up_type;\n\n// Format assessment name\nlet formattedName = assessmentType;\nif (assessmentType === 'iLMH') formattedName = 'iLMH Assessment';\nelse if (assessmentType === 'test_anxiety') formattedName = 'Test Anxiety Assessment';\nelse if (assessmentType === 'iTMPA') formattedName = 'iTMPA Assessment';\nelse if (assessmentType === 'iPMA') formattedName = 'iPMA Assessment';\n\n// Different messages for first and second follow-up\nlet message;\n\nif (followUpType === 'first_followup') {\n  message = `Hi ${parentName}! 👋\\n\\nI noticed you haven't completed the payment for the ${formattedName}. The link is still active.\\n\\n${paymentLink}\\n\\nNeed any help? Feel free to ask!\\n\\n- Subbu Innovative Classes`;\n} else {\n  // second_followup\n  message = `Hi ${parentName},\\n\\nJust a gentle reminder about the ${formattedName} payment. The link will expire soon.\\n\\n${paymentLink}\\n\\nIf you have any questions or concerns, I'm here to help!\\n\\n- Subbu Innovative Classes`;\n}\n\nreturn {\n  json: {\n    phone: payment.lead_phone,\n    message: message,\n    payment_id: payment.payment_id,\n    lead_id: payment.lead_id,\n    follow_up_type: followUpType\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 100],
+      "id": "format-payment-followup",
+      "name": "Format Payment Follow-up"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [1200, 100],
+      "id": "send-payment-followup",
+      "name": "Send Payment Follow-up",
+      "webhookId": "send-payment-followup-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/mark_payment_followup_sent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_payment_id\": \"{{ $json.payment_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 100],
+      "id": "mark-payment-sent",
+      "name": "Mark Payment Follow-up Sent",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\n\nconst parentName = session.parent_name || 'Parent';\nconst phone = session.lead_phone;\n\nconst message = `Hi ${parentName}! 👋\\n\\nJust checking in - did you have any other questions about your child's education or our services?\\n\\nI'm here to help!\\n\\n- Subbu Innovative Classes`;\n\nreturn {\n  json: {\n    phone: phone,\n    message: message,\n    session_id: session.session_id,\n    lead_id: session.lead_id\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 500],
+      "id": "format-session-followup",
+      "name": "Format Session Follow-up"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "879646611896807",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [1200, 500],
+      "id": "send-session-followup",
+      "name": "Send Session Follow-up",
+      "webhookId": "send-session-followup-whatsapp",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "h6CpnDFBzUfo5NYz",
+          "name": "WhatsApp account-subbu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcsdmvxtootizmndmrli.supabase.co/rest/v1/rpc/mark_session_followup_sent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_session_id\": \"{{ $json.session_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 500],
+      "id": "mark-session-sent",
+      "name": "Mark Session Follow-up Sent",
+      "credentials": {
+        "supabaseApi": {
+          "id": "U9FyFNZfHsDO0qib",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1600, 100],
+      "id": "wait-between-messages-1",
+      "name": "Wait (Rate Limit)"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1600, 500],
+      "id": "wait-between-messages-2",
+      "name": "Wait (Rate Limit) 2"
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {"node": "Get Pending Payments", "type": "main", "index": 0},
+          {"node": "Get Inactive Sessions", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Get Pending Payments": {
+      "main": [[{"node": "Has Pending Payments?", "type": "main", "index": 0}]]
+    },
+    "Get Inactive Sessions": {
+      "main": [[{"node": "Has Inactive Sessions?", "type": "main", "index": 0}]]
+    },
+    "Has Pending Payments?": {
+      "main": [[{"node": "Split Payments", "type": "main", "index": 0}]]
+    },
+    "Has Inactive Sessions?": {
+      "main": [[{"node": "Split Sessions", "type": "main", "index": 0}]]
+    },
+    "Split Payments": {
+      "main": [[{"node": "Format Payment Follow-up", "type": "main", "index": 0}]]
+    },
+    "Split Sessions": {
+      "main": [[{"node": "Format Session Follow-up", "type": "main", "index": 0}]]
+    },
+    "Format Payment Follow-up": {
+      "main": [[{"node": "Send Payment Follow-up", "type": "main", "index": 0}]]
+    },
+    "Send Payment Follow-up": {
+      "main": [[{"node": "Mark Payment Follow-up Sent", "type": "main", "index": 0}]]
+    },
+    "Mark Payment Follow-up Sent": {
+      "main": [[{"node": "Wait (Rate Limit)", "type": "main", "index": 0}]]
+    },
+    "Wait (Rate Limit)": {
+      "main": [[{"node": "Split Payments", "type": "main", "index": 0}]]
+    },
+    "Format Session Follow-up": {
+      "main": [[{"node": "Send Session Follow-up", "type": "main", "index": 0}]]
+    },
+    "Send Session Follow-up": {
+      "main": [[{"node": "Mark Session Follow-up Sent", "type": "main", "index": 0}]]
+    },
+    "Mark Session Follow-up Sent": {
+      "main": [[{"node": "Wait (Rate Limit) 2", "type": "main", "index": 0}]]
+    },
+    "Wait (Rate Limit) 2": {
+      "main": [[{"node": "Split Sessions", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {}
+}
